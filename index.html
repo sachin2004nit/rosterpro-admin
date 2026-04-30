@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RosterPro</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+/* ── reset & base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:        #f5f4f0;
+  --surface:   #ffffff;
+  --border:    rgba(0,0,0,.09);
+  --border-md: rgba(0,0,0,.15);
+  --text:      #1a1a1a;
+  --muted:     #6b6b6b;
+  --hint:      #a0a0a0;
+  --blue-bg:   #e8f0fe;
+  --blue-bdr:  #93b4f7;
+  --blue-text: #1a4bbd;
+  --blue-chip: #c2d4fc;
+  --green-bg:  #e6f4ea;
+  --green-bdr: #86c98e;
+  --green-text:#1a6b2a;
+  --purple-bg: #f0ebfe;
+  --purple-bdr:#b89df5;
+  --purple-text:#4a1fb8;
+  --amber-bg:  #fef3e2;
+  --amber-bdr: #f5c06a;
+  --amber-text:#7a4a00;
+  --danger:    #c0392b;
+  --radius:    8px;
+  --radius-lg: 12px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+}
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&display=swap');
+body { background: var(--bg); min-height: 100vh; }
+button { font-family: inherit; cursor: pointer; }
+select, input { font-family: inherit; color: var(--text); }
+
+/* ── login screen ── */
+#login-screen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 20px;
+}
+.login-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 40px 48px; text-align: center;
+  max-width: 360px; width: 100%;
+}
+.login-card h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+.login-card p { color: var(--muted); font-size: 13px; margin-bottom: 28px; line-height: 1.5; }
+.btn-google {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; padding: 10px 16px; border: 1px solid var(--border-md);
+  border-radius: var(--radius); background: var(--surface); font-size: 14px;
+  font-weight: 500; transition: background .15s;
+}
+.btn-google:hover { background: var(--bg); }
+.btn-google svg { width: 18px; height: 18px; flex-shrink: 0; }
+#login-error { font-size: 12px; color: var(--danger); }
+
+/* ── top bar ── */
+#app { display: none; flex-direction: column; min-height: 100vh; }
+.topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 20px; display: flex; align-items: center; gap: 4px;
+  height: 48px; position: sticky; top: 0; z-index: 100;
+}
+.brand { font-size: 15px; font-weight: 600; letter-spacing: -.3px; margin-right: 16px; }
+.nav-tab {
+  padding: 0 14px; height: 48px; font-size: 13px; border: none;
+  background: none; cursor: pointer; color: var(--muted);
+  border-bottom: 2px solid transparent; font-weight: 500;
+  transition: color .15s;
+}
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { color: var(--text); border-bottom-color: var(--text); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.user-pill {
+  display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted);
+  padding: 4px 10px; border: 1px solid var(--border); border-radius: 20px;
+}
+.avatar {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--blue-bg); color: var(--blue-text);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; flex-shrink: 0;
+}
+.btn-signout {
+  font-size: 12px; color: var(--muted); background: none;
+  border: none; cursor: pointer; padding: 4px 8px;
+}
+.btn-signout:hover { color: var(--text); }
+
+/* ── page views ── */
+.view { display: none; flex: 1; }
+.view.active { display: flex; }
+
+/* ── roster layout ── */
+.roster-wrap { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 48px); }
+
+/* student panel */
+.stu-panel {
+  width: 200px; flex-shrink: 0; background: var(--surface);
+  border-right: 1px solid var(--border); display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.panel-hdr {
+  padding: 12px 14px 10px; border-bottom: 1px solid var(--border);
+  font-size: 13px; font-weight: 600; display: flex; justify-content: space-between;
+  align-items: baseline;
+}
+.panel-hdr small { font-size: 11px; font-weight: 400; color: var(--hint); }
+.search-wrap { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.search-wrap input {
+  width: 100%; padding: 5px 9px; border: 1px solid var(--border-md);
+  border-radius: var(--radius); font-size: 12px; background: var(--bg); outline: none;
+}
+.search-wrap input:focus { border-color: #93b4f7; }
+.filter-pills { display: flex; gap: 4px; padding: 7px 10px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+.fpill {
+  padding: 2px 8px; font-size: 11px; border-radius: 10px;
+  border: 1px solid var(--border-md); background: none; color: var(--muted);
+  cursor: pointer; transition: all .12s;
+}
+.fpill.active { background: var(--purple-bg); color: var(--purple-text); border-color: var(--purple-bdr); }
+.stu-list { flex: 1; overflow-y: auto; padding: 6px; }
+.stu-list::-webkit-scrollbar { width: 4px; }
+.stu-list::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 4px; }
+
+.s-card {
+  padding: 7px 9px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); cursor: grab; margin-bottom: 4px;
+  transition: border-color .12s, transform .1s; user-select: none;
+}
+.s-card:hover { border-color: var(--border-md); }
+.s-card:active { cursor: grabbing; transform: scale(.98); }
+.s-card.dragging { opacity: .4; transform: scale(.97); }
+.s-card .sname { font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 5px; }
+.s-card .smeta { font-size: 11px; color: var(--muted); margin-top: 2px; padding-left: 20px; }
+.lvl-badge {
+  width: 16px; height: 16px; border-radius: 4px; font-size: 9px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.lvl-j { background: var(--purple-bg); color: var(--purple-text); }
+.lvl-s { background: var(--green-bg); color: var(--green-text); }
+.unassigned-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--amber-bdr);
+  display: inline-block; margin-left: 2px; flex-shrink: 0;
+}
+
+/* main right area */
+.roster-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.roster-toolbar {
+  padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.roster-toolbar label { font-size: 12px; color: var(--muted); }
+.t-select {
+  padding: 5px 10px; border: 1px solid var(--border-md); border-radius: var(--radius);
+  font-size: 13px; font-weight: 500; background: var(--surface); outline: none;
+  cursor: pointer;
+}
+.t-select:focus { border-color: #93b4f7; }
+.toolbar-spacer { flex: 1; }
+.view-toggle { display: flex; border: 1px solid var(--border-md); border-radius: var(--radius); overflow: hidden; }
+.vtab {
+  padding: 5px 13px; font-size: 12px; border: none; background: none;
+  color: var(--muted); cursor: pointer; font-weight: 500; transition: all .12s;
+}
+.vtab.active { background: var(--bg); color: var(--text); }
+.btn-add {
+  padding: 5px 13px; font-size: 12px; border: 1px solid var(--border-md);
+  border-radius: var(--radius); background: var(--surface); font-weight: 500;
+  transition: background .12s;
+}
+.btn-add:hover { background: var(--bg); }
+
+/* sessions view */
+#sessions-view {
+  flex: 1; overflow-y: auto; padding: 14px; display: flex;
+  flex-direction: column; gap: 10px;
+}
+#sessions-view::-webkit-scrollbar { width: 5px; }
+#sessions-view::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 4px; }
+
+.session-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden; transition: border-color .15s;
+}
+.session-card.drop-active { border-color: var(--purple-bdr); background: #fdfcff; }
+
+.sc-hdr {
+  padding: 10px 14px; display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.sc-accent { width: 3px; border-radius: 2px; align-self: stretch; flex-shrink: 0; }
+.sc-info { flex: 1; min-width: 0; }
+.sc-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sc-title .days { font-weight: 500; }
+.sc-title .time { color: var(--muted); font-weight: 400; }
+.sc-meta { font-size: 11px; color: var(--hint); margin-top: 2px; }
+.sc-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.code-pill {
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
+  padding: 3px 8px; border-radius: 5px; border: 1px solid var(--border-md);
+  background: var(--bg); color: var(--muted); letter-spacing: .03em;
+}
+.stu-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.sc-btn {
+  width: 26px; height: 26px; border-radius: var(--radius); border: 1px solid var(--border);
+  background: none; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted); font-size: 14px; transition: all .12s;
+}
+.sc-btn:hover { background: var(--bg); border-color: var(--border-md); color: var(--text); }
+
+.sc-body {
+  padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 6px;
+  align-content: flex-start; min-height: 52px;
+}
+.stu-chip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px 4px 6px;
+  border-radius: 6px; font-size: 12px; border: 1px solid; cursor: default;
+  transition: border-color .12s;
+}
+.stu-chip .chip-lvl {
+  width: 15px; height: 15px; border-radius: 3px; font-size: 9px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.stu-chip .chip-name { font-weight: 500; }
+.stu-chip .chip-rm {
+  font-size: 15px; line-height: 1; cursor: pointer; color: inherit; opacity: .5;
+  margin-left: 1px; padding: 0 1px; transition: opacity .12s;
+}
+.stu-chip .chip-rm:hover { opacity: 1; }
+
+.chip-blue  { background: var(--blue-bg);   border-color: var(--blue-bdr);   color: var(--blue-text);   }
+.chip-blue  .chip-lvl { background: var(--blue-chip); color: var(--blue-text); }
+.chip-green { background: var(--green-bg);  border-color: var(--green-bdr);  color: var(--green-text);  }
+.chip-green .chip-lvl { background: #b6e0bb; color: var(--green-text); }
+.chip-amber { background: var(--amber-bg);  border-color: var(--amber-bdr);  color: var(--amber-text);  }
+.chip-amber .chip-lvl { background: #f9d89a; color: var(--amber-text); }
+.chip-gray  { background: var(--bg);        border-color: var(--border-md);  color: var(--muted);       }
+.chip-gray  .chip-lvl { background: #e0ddd8; color: var(--muted); }
+
+.drop-zone {
+  flex: 1; min-width: 140px; height: 32px; border: 1.5px dashed var(--border-md);
+  border-radius: var(--radius); display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--hint); transition: all .15s;
+}
+.drop-zone.over { border-color: var(--purple-bdr); background: var(--purple-bg); color: var(--purple-text); }
+
+.sc-empty {
+  padding: 14px; text-align: center; color: var(--hint);
+  font-size: 12px; font-style: italic;
+}
+
+/* week grid view */
+#grid-view {
+  flex: 1; overflow: auto; padding: 14px; display: none;
+}
+.week-grid {
+  display: grid; grid-template-columns: 56px repeat(7, 1fr);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  overflow: hidden; background: var(--surface); min-width: 600px;
+}
+.wg-hdr {
+  background: var(--bg); padding: 8px 6px; text-align: center;
+  font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .04em; border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.wg-hdr:last-child { border-right: none; }
+.wg-time {
+  font-size: 11px; color: var(--hint); text-align: right; padding: 5px 7px 0;
+  border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  height: 72px; background: var(--surface);
+}
+.wg-cell {
+  height: 72px; border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border); padding: 3px; position: relative;
+  background: var(--surface); transition: background .1s;
+}
+.wg-cell:last-child { border-right: none; }
+.wg-cell.has-session { background: var(--surface); }
+.wg-cell.over { background: var(--purple-bg); }
+.wg-block {
+  height: 100%; border-radius: 5px; padding: 5px 7px; font-size: 11px;
+  cursor: pointer; display: flex; flex-direction: column; gap: 3px;
+  transition: filter .12s;
+}
+.wg-block:hover { filter: brightness(.96); }
+.wg-block .wb-code { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wg-block .wb-stus { display: flex; flex-wrap: wrap; gap: 2px; }
+.wb-stu { font-size: 10px; padding: 1px 4px; border-radius: 3px; white-space: nowrap; }
+.wg-empty-hint {
+  position: absolute; inset: 3px; border: 1.5px dashed var(--border);
+  border-radius: 5px; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--hint); opacity: 0; transition: opacity .12s;
+}
+.wg-cell:not(.has-session):hover .wg-empty-hint { opacity: 1; }
+
+/* loading / empty states */
+.loading-state {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 10px; color: var(--hint); font-size: 13px;
+}
+.spinner {
+  width: 28px; height: 28px; border: 2px solid var(--border-md);
+  border-top-color: var(--text); border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── modal ── */
+.modal-backdrop {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35);
+  z-index: 200; align-items: center; justify-content: center;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  background: var(--surface); border-radius: var(--radius-lg);
+  width: 440px; max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 60px); overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,.15);
+}
+.modal-hdr {
+  padding: 16px 20px 14px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-hdr h3 { font-size: 15px; font-weight: 600; }
+.modal-close {
+  width: 28px; height: 28px; border-radius: var(--radius); border: none;
+  background: none; cursor: pointer; font-size: 18px; color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-close:hover { background: var(--bg); }
+.modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.form-row { display: flex; gap: 10px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.form-group label { font-size: 12px; font-weight: 500; color: var(--muted); }
+.form-group input, .form-group select {
+  padding: 7px 10px; border: 1px solid var(--border-md); border-radius: var(--radius);
+  font-size: 13px; background: var(--bg); outline: none;
+}
+.form-group input:focus, .form-group select:focus { border-color: #93b4f7; background: var(--surface); }
+.day-picker { display: flex; gap: 5px; }
+.day-btn {
+  width: 34px; height: 34px; border-radius: var(--radius); border: 1px solid var(--border-md);
+  background: none; font-size: 11px; font-weight: 600; cursor: pointer;
+  transition: all .12s; color: var(--muted);
+}
+.day-btn.selected { background: var(--blue-bg); border-color: var(--blue-bdr); color: var(--blue-text); }
+.modal-footer {
+  padding: 12px 20px 16px; display: flex; justify-content: flex-end; gap: 8px;
+  border-top: 1px solid var(--border);
+}
+.btn-cancel {
+  padding: 7px 16px; border: 1px solid var(--border-md); border-radius: var(--radius);
+  background: none; font-size: 13px; cursor: pointer;
+}
+.btn-cancel:hover { background: var(--bg); }
+.btn-save {
+  padding: 7px 20px; border: none; border-radius: var(--radius);
+  background: #1a4bbd; color: #fff; font-size: 13px;
+  font-weight: 600; cursor: pointer; transition: background .12s;
+}
+.btn-save:hover { background: #1540a8; }
+.btn-save:disabled { background: var(--border-md); cursor: not-allowed; }
+
+/* ── toast ── */
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(60px);
+  background: #1a1a1a; color: #fff; padding: 9px 18px; border-radius: 20px;
+  font-size: 13px; z-index: 300; transition: transform .25s ease;
+  pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── conflict badge ── */
+.conflict-badge {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11px;
+  padding: 2px 7px; border-radius: 10px; background: #fde8e8;
+  color: var(--danger); border: 1px solid #f5c6c6;
+}
+
+/* ── placeholder views ── */
+.placeholder-view {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 8px; color: var(--hint);
+}
+.placeholder-view h2 { font-size: 16px; font-weight: 500; color: var(--muted); }
+.placeholder-view p { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>RosterPro</h1>
+    <p>Admin portal for managing teacher sessions and student rosters.</p>
+    <button class="btn-google" id="btn-google-login">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      Sign in with Google
+    </button>
+    <p id="login-error" style="margin-top:10px"></p>
+  </div>
+</div>
+
+<!-- ── MAIN APP ── -->
+<div id="app">
+
+  <!-- top bar -->
+  <div class="topbar">
+    <span class="brand">RosterPro</span>
+    <button class="nav-tab active" onclick="showView('roster', this)">Roster</button>
+    <button class="nav-tab" onclick="showView('calendar', this)">Calendar</button>
+    <button class="nav-tab" onclick="showView('students', this)">Students</button>
+    <button class="nav-tab" onclick="showView('teachers', this)">Teachers</button>
+    <button class="nav-tab" onclick="showView('codes', this)">Meet codes</button>
+    <div class="topbar-right">
+      <div class="user-pill">
+        <div class="avatar" id="user-avatar">?</div>
+        <span id="user-name">Loading...</span>
+      </div>
+      <button class="btn-signout" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <!-- ROSTER VIEW -->
+  <div class="view active" id="view-roster">
+    <div class="roster-wrap">
+
+      <!-- left: student pool -->
+      <div class="stu-panel">
+        <div class="panel-hdr">Students <small id="stu-count">—</small></div>
+        <div class="search-wrap">
+          <input type="text" placeholder="Search name..." id="stu-search" oninput="filterStudents(this.value)">
+        </div>
+        <div class="filter-pills">
+          <button class="fpill" id="fp-junior" onclick="toggleFilter('junior')">Junior</button>
+          <button class="fpill" id="fp-senior" onclick="toggleFilter('senior')">Senior</button>
+          <button class="fpill" id="fp-free" onclick="toggleFilter('free')" title="No teacher assigned">Unassigned</button>
+        </div>
+        <div class="stu-list" id="stu-list">
+          <div class="loading-state" style="padding:20px 0">
+            <div class="spinner"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- right: roster content -->
+      <div class="roster-main">
+        <div class="roster-toolbar">
+          <label>Teacher</label>
+          <select class="t-select" id="teacher-select" onchange="onTeacherChange()">
+            <option value="">— select teacher —</option>
+          </select>
+          <button class="btn-add" id="btn-add-session" onclick="openAddSession()" disabled>+ Session</button>
+          <div class="toolbar-spacer"></div>
+          <div class="view-toggle">
+            <button class="vtab active" id="vtab-sessions" onclick="switchRosterView('sessions')">Sessions</button>
+            <button class="vtab" id="vtab-grid" onclick="switchRosterView('grid')">Week grid</button>
+          </div>
+        </div>
+
+        <!-- sessions view -->
+        <div id="sessions-view">
+          <div class="loading-state" id="sessions-loading">
+            <p>Select a teacher to view their roster</p>
+          </div>
+        </div>
+
+        <!-- grid view -->
+        <div id="grid-view"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PLACEHOLDER VIEWS (to be built separately) -->
+  <div class="view" id="view-calendar">
+    <div class="placeholder-view"><h2>Calendar view</h2><p>Coming next</p></div>
+  </div>
+  <div class="view" id="view-students">
+    <div class="placeholder-view"><h2>Students</h2><p>Coming next</p></div>
+  </div>
+  <div class="view" id="view-teachers">
+    <div class="placeholder-view"><h2>Teachers</h2><p>Coming next</p></div>
+  </div>
+  <div class="view" id="view-codes">
+    <div class="placeholder-view"><h2>Meet codes</h2><p>Coming next</p></div>
+  </div>
+
+</div>
+
+<!-- ── ADD / EDIT SESSION MODAL ── -->
+<div class="modal-backdrop" id="session-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h3 id="modal-title">Add session</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-roster-id">
+      <div class="form-group">
+        <label>Meeting code</label>
+        <select id="modal-code">
+          <option value="">— select a code —</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Start time (IST)</label>
+          <input type="time" id="modal-time" value="09:00">
+        </div>
+        <div class="form-group">
+          <label>Duration (minutes)</label>
+          <input type="number" id="modal-duration" value="60" min="15" max="180" step="15">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Repeat on</label>
+        <div class="day-picker">
+          <button class="day-btn" data-day="1" onclick="toggleDay(this)">Mo</button>
+          <button class="day-btn" data-day="2" onclick="toggleDay(this)">Tu</button>
+          <button class="day-btn" data-day="3" onclick="toggleDay(this)">We</button>
+          <button class="day-btn" data-day="4" onclick="toggleDay(this)">Th</button>
+          <button class="day-btn" data-day="5" onclick="toggleDay(this)">Fr</button>
+          <button class="day-btn" data-day="6" onclick="toggleDay(this)">Sa</button>
+          <button class="day-btn" data-day="0" onclick="toggleDay(this)">Su</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Label (optional)</label>
+        <input type="text" id="modal-label" placeholder="e.g. Morning batch">
+      </div>
+      <div id="conflict-warning" style="display:none">
+        <div class="conflict-badge">
+          ⚠ Same code already used at this time by another session
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="btn-save-session" onclick="saveSession()">Save session</button>
+    </div>
+  </div>
+</div>
+
+<!-- toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────
+// FIREBASE CONFIG — replace with your project's config
+// Get this from Firebase Console → Project settings → Your apps → Config
+// ─────────────────────────────────────────────
+const FIREBASE_CONFIG = {
+  apiKey:            "REPLACE_WITH_YOUR_API_KEY",
+  authDomain:        "REPLACE.firebaseapp.com",
+  projectId:         "REPLACE_WITH_PROJECT_ID",
+  storageBucket:     "REPLACE.appspot.com",
+  messagingSenderId: "REPLACE",
+  appId:             "REPLACE"
+};
+
+// ─────────────────────────────────────────────
+// ADMIN WHITELIST — add your allowed Google UIDs here
+// Find UID: Firebase Console → Authentication → Users
+// ─────────────────────────────────────────────
+const ALLOWED_UIDS = [
+  "REPLACE_WITH_ADMIN_UID_1",
+  "REPLACE_WITH_ADMIN_UID_2",
+  "REPLACE_WITH_ADMIN_UID_3",
+];
+
+// ─────────────────────────────────────────────
+// init
+// ─────────────────────────────────────────────
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+let currentUser   = null;
+let allStudents   = {};          // id → student doc
+let allMeetCodes  = {};          // id → code doc
+let allTeachers   = [];          // [{id, name, email, alias}]
+let currentTeacher = null;       // teacher doc
+let currentSessions = [];        // roster docs for selected teacher
+let rosterUnsubscribe = null;    // firestore listener
+let activeFilters = new Set();   // 'junior' | 'senior' | 'free'
+let draggingStudentId = null;
+
+const DAY_NAMES  = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+const DAY_FULL   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const CHIP_COLORS = ['chip-blue','chip-green','chip-amber','chip-gray'];
+const BLOCK_COLORS = [
+  { bg:'var(--blue-bg)',   text:'var(--blue-text)',  chip:'var(--blue-chip)' },
+  { bg:'var(--green-bg)',  text:'var(--green-text)', chip:'#b6e0bb'         },
+  { bg:'var(--amber-bg)',  text:'var(--amber-text)', chip:'#f9d89a'         },
+  { bg:'var(--purple-bg)', text:'var(--purple-text)',chip:'#d8c8fc'         },
+];
+// stable color per session index
+function sessionColor(idx) { return BLOCK_COLORS[idx % BLOCK_COLORS.length]; }
+function chipColor(idx)    { return CHIP_COLORS[idx % CHIP_COLORS.length]; }
+
+// ─────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────
+auth.onAuthStateChanged(async user => {
+  if (!user) { showLogin(); return; }
+  if (!ALLOWED_UIDS.includes(user.uid)) {
+    await auth.signOut();
+    showLoginError('Access denied. Your account is not authorised.');
+    return;
+  }
+  currentUser = user;
+  document.getElementById('user-name').textContent = user.displayName || user.email;
+  const initials = (user.displayName||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('user-avatar').textContent = initials;
+  showApp();
+  await Promise.all([loadStudents(), loadTeachers(), loadMeetCodes()]);
+});
+
+document.getElementById('btn-google-login').onclick = () => {
+  document.getElementById('login-error').textContent = '';
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(e => showLoginError(e.message));
+};
+
+function signOut() { auth.signOut(); }
+
+function showLogin() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+}
+function showLoginError(msg) {
+  document.getElementById('login-error').textContent = msg;
+}
+
+// ─────────────────────────────────────────────
+// FIRESTORE LOADERS
+// ─────────────────────────────────────────────
+async function loadStudents() {
+  const snap = await db.collection('students').where('status','!=','deleted').get().catch(() => db.collection('students').get());
+  allStudents = {};
+  snap.forEach(doc => { allStudents[doc.id] = { id: doc.id, ...doc.data() }; });
+  renderStudentList();
+}
+
+async function loadTeachers() {
+  const snap = await db.collection('teachers').get();
+  allTeachers = [];
+  snap.forEach(doc => allTeachers.push({ id: doc.id, ...doc.data() }));
+  allTeachers.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  const sel = document.getElementById('teacher-select');
+  sel.innerHTML = '<option value="">— select teacher —</option>';
+  allTeachers.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.name + (t.alias ? ` (${t.alias})` : '');
+    sel.appendChild(opt);
+  });
+}
+
+async function loadMeetCodes() {
+  const snap = await db.collection('meetingCodes').get();
+  allMeetCodes = {};
+  snap.forEach(doc => { allMeetCodes[doc.id] = { id: doc.id, ...doc.data() }; });
+}
+
+// ─────────────────────────────────────────────
+// STUDENT PANEL
+// ─────────────────────────────────────────────
+function renderStudentList(query = '') {
+  const list = document.getElementById('stu-list');
+  const q = query.toLowerCase();
+  let students = Object.values(allStudents);
+
+  if (activeFilters.has('junior')) students = students.filter(s => s.tier === 'junior');
+  if (activeFilters.has('senior')) students = students.filter(s => s.tier === 'senior');
+  if (activeFilters.has('free'))   students = students.filter(s => !s.primaryTeacherId);
+  if (q) students = students.filter(s => (s.name||'').toLowerCase().includes(q));
+
+  students.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+
+  document.getElementById('stu-count').textContent = students.length;
+
+  if (!students.length) {
+    list.innerHTML = '<p style="padding:16px 10px;font-size:12px;color:var(--hint);text-align:center">No students found</p>';
+    return;
+  }
+
+  list.innerHTML = students.map(s => {
+    const tier = s.tier === 'senior' ? 'lvl-s' : 'lvl-j';
+    const lvl  = s.level || '?';
+    const unassigned = !s.primaryTeacherId ? '<span class="unassigned-dot" title="No teacher assigned"></span>' : '';
+    const teacher = s.primaryTeacherId
+      ? (allTeachers.find(t => t.id === s.primaryTeacherId)?.alias || '—')
+      : '—';
+    return `<div class="s-card" draggable="true"
+      data-id="${s.id}" data-name="${s.name||''}" data-tier="${s.tier||''}" data-teacher="${s.primaryTeacherId||''}"
+      ondragstart="onDragStart(event,'${s.id}')"
+      ondragend="onDragEnd(event)">
+      <div class="sname">
+        <span class="lvl-badge ${tier}">${lvl}</span>
+        ${s.name || 'Unnamed'}
+        ${unassigned}
+      </div>
+      <div class="smeta">${s.tier||'—'} · ${teacher}</div>
+    </div>`;
+  }).join('');
+}
+
+function filterStudents(q) { renderStudentList(q); }
+
+function toggleFilter(key) {
+  if (activeFilters.has(key)) activeFilters.delete(key);
+  else activeFilters.add(key);
+  document.getElementById('fp-'+key).classList.toggle('active', activeFilters.has(key));
+  renderStudentList(document.getElementById('stu-search').value);
+}
+
+// ─────────────────────────────────────────────
+// TEACHER SELECT + ROSTER LOAD
+// ─────────────────────────────────────────────
+function onTeacherChange() {
+  const teacherId = document.getElementById('teacher-select').value;
+  document.getElementById('btn-add-session').disabled = !teacherId;
+  if (rosterUnsubscribe) { rosterUnsubscribe(); rosterUnsubscribe = null; }
+  currentSessions = [];
+
+  if (!teacherId) {
+    currentTeacher = null;
+    document.getElementById('sessions-view').innerHTML =
+      '<div class="loading-state" id="sessions-loading"><p>Select a teacher to view their roster</p></div>';
+    renderGridView();
+    return;
+  }
+  currentTeacher = allTeachers.find(t => t.id === teacherId);
+  showSessionsLoading();
+
+  rosterUnsubscribe = db.collection('teacher').doc(teacherId).collection('roster')
+    .where('status','!=','deleted')
+    .onSnapshot(snap => {
+      currentSessions = [];
+      snap.forEach(doc => currentSessions.push({ id: doc.id, ...doc.data() }));
+      currentSessions.sort((a,b) => (a.sessionTime||'').localeCompare(b.sessionTime||''));
+      renderSessionsView();
+      renderGridView();
+    }, err => {
+      // fallback if status field missing
+      db.collection('teacher').doc(teacherId).collection('roster')
+        .onSnapshot(snap => {
+          currentSessions = [];
+          snap.forEach(doc => currentSessions.push({ id: doc.id, ...doc.data() }));
+          currentSessions.sort((a,b) => (a.sessionTime||'').localeCompare(b.sessionTime||''));
+          renderSessionsView();
+          renderGridView();
+        });
+    });
+}
+
+function showSessionsLoading() {
+  document.getElementById('sessions-view').innerHTML =
+    '<div class="loading-state"><div class="spinner"></div><p>Loading roster…</p></div>';
+}
+
+// ─────────────────────────────────────────────
+// SESSIONS VIEW RENDER
+// ─────────────────────────────────────────────
+function renderSessionsView() {
+  const container = document.getElementById('sessions-view');
+  if (!currentSessions.length) {
+    container.innerHTML = `<div class="loading-state">
+      <p style="color:var(--muted)">No sessions yet for ${currentTeacher?.name||'this teacher'}</p>
+      <p style="font-size:12px">Click <strong>+ Session</strong> to add one</p>
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = currentSessions.map((s, idx) => {
+    const color  = sessionColor(idx);
+    const cchip  = chipColor(idx);
+    const code   = allMeetCodes[s.meetingCodeId];
+    const codeStr = code ? code.code : (s.meetingCodeId || '—');
+    const codeLabel = code ? (code.label || code.code) : codeStr;
+    const days   = (s.weekdays||[]).map(d => DAY_FULL[d]).join(' + ') || '—';
+    const time   = formatTime(s.sessionTime);
+    const dur    = s.durationMins ? `${s.durationMins} min` : '';
+    const studentIds = s.studentIds || [];
+    const label  = s.label ? `<span style="font-size:11px;color:var(--hint);font-weight:400">${s.label}</span>` : '';
+    const isGroup = studentIds.length > 1;
+
+    const chips = studentIds.map(sid => {
+      const stu = allStudents[sid];
+      if (!stu) return '';
+      const tier = stu.tier === 'senior' ? 'lvl-s' : 'lvl-j';
+      const lvl  = stu.level || '?';
+      return `<span class="stu-chip ${cchip}">
+        <span class="chip-lvl ${tier}">${lvl}</span>
+        <span class="chip-name">${stu.name||sid}</span>
+        <span class="chip-rm" onclick="removeStudentFromSession('${s.id}','${sid}',event)" title="Remove">×</span>
+      </span>`;
+    }).join('');
+
+    return `<div class="session-card" id="sc-${s.id}"
+      ondragover="onDragOverSession(event,'${s.id}')"
+      ondrop="onDropSession(event,'${s.id}')"
+      ondragleave="onDragLeaveSession('${s.id}')">
+      <div class="sc-hdr">
+        <div class="sc-accent" style="background:${color.text}"></div>
+        <div class="sc-info">
+          <div class="sc-title">
+            <span class="days">${days}</span>
+            <span class="time">· ${time}${dur ? ' · '+dur : ''}</span>
+            ${isGroup ? '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:var(--amber-bg);color:var(--amber-text);border:1px solid var(--amber-bdr)">group</span>' : ''}
+            ${label}
+          </div>
+          <div class="sc-meta">Weekly · IST${s.startDate ? ' · since '+formatDate(s.startDate) : ''}</div>
+        </div>
+        <div class="sc-right">
+          <span class="code-pill" title="Meet code">${codeStr}</span>
+          <span class="stu-count">${studentIds.length} student${studentIds.length!==1?'s':''}</span>
+          <button class="sc-btn" onclick="openEditSession('${s.id}')" title="Edit">✎</button>
+          <button class="sc-btn" onclick="deleteSession('${s.id}')" title="Delete" style="color:var(--danger)">✕</button>
+        </div>
+      </div>
+      <div class="sc-body" id="scb-${s.id}">
+        ${chips}
+        <div class="drop-zone" id="dz-${s.id}">Drop student here to assign</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────
+// GRID VIEW RENDER
+// ─────────────────────────────────────────────
+function renderGridView() {
+  const container = document.getElementById('grid-view');
+  if (!currentSessions.length) { container.innerHTML = ''; return; }
+
+  // build time slots from sessions
+  const times = [...new Set(currentSessions.map(s => s.sessionTime||'09:00'))].sort();
+  const activeDays = [...new Set(currentSessions.flatMap(s => s.weekdays||[]))].sort();
+  if (!activeDays.length) { container.innerHTML = ''; return; }
+
+  const cols = activeDays.length;
+  let html = `<div class="week-grid" style="grid-template-columns:56px repeat(${cols},1fr)">`;
+
+  // header row
+  html += `<div class="wg-hdr"></div>`;
+  activeDays.forEach(d => { html += `<div class="wg-hdr">${DAY_FULL[d]}</div>`; });
+
+  // time rows
+  times.forEach(t => {
+    html += `<div class="wg-time">${formatTime(t)}</div>`;
+    activeDays.forEach(day => {
+      const session = currentSessions.find(s => (s.weekdays||[]).includes(day) && s.sessionTime === t);
+      if (!session) {
+        html += `<div class="wg-cell" ondragover="govGrid(event,this)" ondrop="gdropGrid(event,this,'${t}',${day})" ondragleave="this.classList.remove('over')">
+          <div class="wg-empty-hint">Drop here</div></div>`;
+        return;
+      }
+      const idx   = currentSessions.indexOf(session);
+      const color = sessionColor(idx);
+      const code  = allMeetCodes[session.meetingCodeId];
+      const codeShort = code ? (code.label || code.code.split('-')[0]+'…') : '—';
+      const sids  = session.studentIds || [];
+      const stuChips = sids.slice(0,4).map(sid => {
+        const stu = allStudents[sid];
+        return `<span class="wb-stu" style="background:${color.chip};color:${color.text}">${stu?(stu.name||'').split(' ')[0]:'?'}</span>`;
+      }).join('') + (sids.length>4 ? `<span class="wb-stu" style="background:${color.chip};color:${color.text}">+${sids.length-4}</span>` : '');
+
+      html += `<div class="wg-cell has-session">
+        <div class="wg-block" style="background:${color.bg};color:${color.text}" onclick="switchRosterView('sessions');scrollToSession('${session.id}')">
+          <div class="wb-code">${codeShort}</div>
+          <div class="wb-stus">${stuChips || '<span style="font-size:10px;opacity:.6">empty</span>'}</div>
+        </div>
+      </div>`;
+    });
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function scrollToSession(id) {
+  setTimeout(() => {
+    const el = document.getElementById('sc-'+id);
+    if (el) el.scrollIntoView({ behavior:'smooth', block:'center' });
+  }, 100);
+}
+
+// ─────────────────────────────────────────────
+// DRAG & DROP
+// ─────────────────────────────────────────────
+function onDragStart(ev, studentId) {
+  draggingStudentId = studentId;
+  ev.dataTransfer.effectAllowed = 'copy';
+  ev.currentTarget.classList.add('dragging');
+}
+function onDragEnd(ev) {
+  ev.currentTarget.classList.remove('dragging');
+}
+
+function onDragOverSession(ev, sessionId) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'copy';
+  document.getElementById('sc-'+sessionId)?.classList.add('drop-active');
+  document.getElementById('dz-'+sessionId)?.classList.add('over');
+}
+function onDragLeaveSession(sessionId) {
+  document.getElementById('sc-'+sessionId)?.classList.remove('drop-active');
+  document.getElementById('dz-'+sessionId)?.classList.remove('over');
+}
+async function onDropSession(ev, sessionId) {
+  ev.preventDefault();
+  onDragLeaveSession(sessionId);
+  if (!draggingStudentId) return;
+  await addStudentToSession(sessionId, draggingStudentId);
+  draggingStudentId = null;
+}
+
+function govGrid(ev, el) { ev.preventDefault(); el.classList.add('over'); }
+async function gdropGrid(ev, el, time, day) {
+  ev.preventDefault(); el.classList.remove('over');
+  if (!draggingStudentId) return;
+  // find or prompt which session at that slot
+  const session = currentSessions.find(s => (s.weekdays||[]).includes(day) && s.sessionTime === time);
+  if (session) { await addStudentToSession(session.id, draggingStudentId); }
+  draggingStudentId = null;
+}
+
+// ─────────────────────────────────────────────
+// FIRESTORE WRITES
+// ─────────────────────────────────────────────
+async function addStudentToSession(sessionId, studentId) {
+  const session = currentSessions.find(s => s.id === sessionId);
+  if (!session) return;
+  const existing = session.studentIds || [];
+  if (existing.includes(studentId)) { showToast('Already in this session'); return; }
+
+  const stu = allStudents[studentId];
+  const name = stu?.name || studentId;
+
+  try {
+    await db.collection('teacher').doc(currentTeacher.id)
+      .collection('roster').doc(sessionId)
+      .update({ studentIds: firebase.firestore.FieldValue.arrayUnion(studentId) });
+    showToast(`${name} added`);
+  } catch(e) { showToast('Error: '+e.message); }
+}
+
+async function removeStudentFromSession(sessionId, studentId, ev) {
+  ev.stopPropagation();
+  const stu = allStudents[studentId];
+  const name = stu?.name || studentId;
+  if (!confirm(`Remove ${name} from this session?`)) return;
+  try {
+    await db.collection('teacher').doc(currentTeacher.id)
+      .collection('roster').doc(sessionId)
+      .update({ studentIds: firebase.firestore.FieldValue.arrayRemove(studentId) });
+    showToast(`${name} removed`);
+  } catch(e) { showToast('Error: '+e.message); }
+}
+
+async function deleteSession(sessionId) {
+  const s = currentSessions.find(x => x.id === sessionId);
+  const days = (s?.weekdays||[]).map(d=>DAY_FULL[d]).join('+');
+  if (!confirm(`Delete session (${days} ${formatTime(s?.sessionTime)})? Students will be unassigned.`)) return;
+  try {
+    await db.collection('teacher').doc(currentTeacher.id)
+      .collection('roster').doc(sessionId)
+      .update({ status: 'deleted' });
+    showToast('Session deleted');
+  } catch(e) { showToast('Error: '+e.message); }
+}
+
+// ─────────────────────────────────────────────
+// ADD / EDIT SESSION MODAL
+// ─────────────────────────────────────────────
+function openAddSession() {
+  document.getElementById('modal-title').textContent = 'Add session';
+  document.getElementById('edit-roster-id').value = '';
+  document.getElementById('modal-time').value = '09:00';
+  document.getElementById('modal-duration').value = '60';
+  document.getElementById('modal-label').value = '';
+  document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected'));
+  populateCodeSelect();
+  document.getElementById('conflict-warning').style.display = 'none';
+  document.getElementById('session-modal').classList.add('open');
+}
+
+function openEditSession(sessionId) {
+  const s = currentSessions.find(x => x.id === sessionId);
+  if (!s) return;
+  document.getElementById('modal-title').textContent = 'Edit session';
+  document.getElementById('edit-roster-id').value = sessionId;
+  document.getElementById('modal-time').value = s.sessionTime || '09:00';
+  document.getElementById('modal-duration').value = s.durationMins || 60;
+  document.getElementById('modal-label').value = s.label || '';
+  document.querySelectorAll('.day-btn').forEach(b => {
+    b.classList.toggle('selected', (s.weekdays||[]).includes(parseInt(b.dataset.day)));
+  });
+  populateCodeSelect(s.meetingCodeId);
+  document.getElementById('conflict-warning').style.display = 'none';
+  document.getElementById('session-modal').classList.add('open');
+}
+
+function populateCodeSelect(selectedId) {
+  const sel = document.getElementById('modal-code');
+  sel.innerHTML = '<option value="">— select a code —</option>';
+  Object.values(allMeetCodes).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = (c.label ? c.label+' — ' : '') + c.code;
+    if (selectedId && c.id === selectedId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function toggleDay(btn) { btn.classList.toggle('selected'); }
+
+function closeModal() {
+  document.getElementById('session-modal').classList.remove('open');
+}
+
+async function saveSession() {
+  const btn   = document.getElementById('btn-save-session');
+  const id    = document.getElementById('edit-roster-id').value;
+  const codeId= document.getElementById('modal-code').value;
+  const time  = document.getElementById('modal-time').value;
+  const dur   = parseInt(document.getElementById('modal-duration').value) || 60;
+  const label = document.getElementById('modal-label').value.trim();
+  const days  = [...document.querySelectorAll('.day-btn.selected')].map(b => parseInt(b.dataset.day));
+
+  if (!codeId) { alert('Please select a meeting code'); return; }
+  if (!days.length) { alert('Please select at least one day'); return; }
+
+  // conflict check: same code, overlapping time, different session
+  const conflict = currentSessions.find(s =>
+    s.id !== id && s.meetingCodeId === codeId &&
+    s.sessionTime === time &&
+    (s.weekdays||[]).some(d => days.includes(d))
+  );
+  if (conflict) {
+    document.getElementById('conflict-warning').style.display = 'block';
+    // also check across other teachers (basic — full cross-teacher check needs a query)
+    return;
+  }
+  document.getElementById('conflict-warning').style.display = 'none';
+
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const data = {
+    meetingCodeId: codeId,
+    sessionTime:   time,
+    durationMins:  dur,
+    weekdays:      days,
+    label:         label || null,
+    timezone:      'Asia/Kolkata',
+    status:        'active',
+  };
+
+  try {
+    const ref = db.collection('teacher').doc(currentTeacher.id).collection('roster');
+    if (id) {
+      await ref.doc(id).update(data);
+      showToast('Session updated');
+    } else {
+      data.studentIds = [];
+      data.createdAt  = firebase.firestore.FieldValue.serverTimestamp();
+      await ref.add(data);
+      showToast('Session created');
+    }
+    closeModal();
+  } catch(e) {
+    showToast('Error: '+e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save session';
+  }
+}
+
+// ─────────────────────────────────────────────
+// VIEW SWITCHING
+// ─────────────────────────────────────────────
+function showView(name, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  el.classList.add('active');
+}
+
+function switchRosterView(v) {
+  const showSessions = v === 'sessions';
+  document.getElementById('sessions-view').style.display  = showSessions ? 'flex' : 'none';
+  document.getElementById('grid-view').style.display      = showSessions ? 'none' : 'block';
+  document.getElementById('vtab-sessions').classList.toggle('active', showSessions);
+  document.getElementById('vtab-grid').classList.toggle('active', !showSessions);
+}
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+function formatTime(t) {
+  if (!t) return '—';
+  const [h, m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hh   = h % 12 || 12;
+  return `${hh}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+function formatDate(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('en-IN', { month:'short', year:'numeric' });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// close modal on backdrop click
+document.getElementById('session-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+</script>
+</body>
+</html>
