@@ -495,13 +495,32 @@ select, input { font-family: inherit; color: var(--text); }
     <div class="placeholder-view"><h2>Calendar view</h2><p>Coming next</p></div>
   </div>
   <div class="view" id="view-students">
-    <div class="placeholder-view"><h2>Students</h2><p>Coming next</p></div>
+    <div class="people-wrap">
+      <div class="people-hdr"><h2>Students</h2><button class="btn-primary">+ Add student</button></div>
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Level</th><th>Tier</th><th>Teacher</th><th>Display names</th><th>Registered</th></tr></thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
   </div>
   <div class="view" id="view-teachers">
-    <div class="placeholder-view"><h2>Teachers</h2><p>Coming next</p></div>
+    <div class="people-wrap">
+    <div class="people-hdr"><h2>Teachers</h2><button class="btn-primary">+ Add teacher</button></div>
+    <table class="data-table">
+      <thead><tr><th>Name</th><th>Alias</th><th>Email</th><th>Students</th><th>UID</th></tr></thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
   </div>
   <div class="view" id="view-codes">
-    <div class="placeholder-view"><h2>Meet codes</h2><p>Coming next</p></div>
+    <div class="people-wrap">
+    <div class="people-hdr"><h2>Meeting codes</h2><button class="btn-primary">+ Add code</button></div>
+    <div class="codes-grid">
+      <div class="code-card" style="border:1.5px dashed var(--color-border-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-tertiary);min-height:80px;font-size:13px">+ Add room</div>
+    </div>
+  </div>
   </div>
 
 </div>
@@ -631,6 +650,7 @@ auth.onAuthStateChanged(async user => {
   document.getElementById('user-name').textContent = user.displayName || user.email;
   const initials = (user.displayName||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('user-avatar').textContent = initials;
+  loadAllData();
   showApp();
   await Promise.all([loadStudents(), loadTeachers(), loadMeetCodes()]);
 });
@@ -1107,6 +1127,18 @@ function showView(name, el) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('view-'+name).classList.add('active');
   el.classList.add('active');
+
+  const targetView = document.getElementById('view-' + name);
+  if (targetView) {
+    targetView.classList.add('active');
+  }
+  
+  // 3. Mark the clicked tab as active
+  if (el) el.classList.add('active');
+
+  if (id === 'students') renderStudentsView();
+  if (id === 'teachers') renderTeachersView();
+  if (id === 'codes')    renderCodesView();
 }
 
 function switchRosterView(v) {
@@ -1145,6 +1177,90 @@ function showToast(msg) {
 document.getElementById('session-modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
+
+function renderStudentsView() {
+  const container = document.querySelector('#view-students tbody');
+  const students = Object.values(allStudents);
+
+  container.innerHTML = students.map(s => {
+    // Find teacher alias using primaryTeacherId
+    const teacher = allTeachers.find(t => t.id === s.primaryTeacherId);
+    const teacherName = teacher ? (teacher.alias || teacher.name) : 'Unassigned';
+    
+    // Format Display Names tags[cite: 1]
+    const tags = (s.displayNames || []).map(name => `<span class="tag">${name}</span>`).join('');
+    const regDate = s.dateOfReg ? formatDate(s.dateOfReg) : '—';
+
+    return `
+      <tr>
+        <td><strong>${s.name || 'Unnamed'}</strong></td>
+        <td><span class="badge badge-l">Lvl ${s.level || '?'}</span></td>
+        <td><span class="badge badge-${s.tier === 'senior' ? 's' : 'j'}">${s.tier || '—'}</span></td>
+        <td>${teacherName}</td>
+        <td><div class="tag-list">${tags}</div></td>
+        <td style="color:var(--color-text-secondary)">${regDate}</td>
+      </tr>`;
+  }).join('');
+}
+
+function renderTeachersView() {
+  const container = document.querySelector('#view-teachers tbody');
+  
+  container.innerHTML = allTeachers.map(t => {
+    // Count students assigned to this teacher[cite: 1]
+    const studentCount = Object.values(allStudents).filter(s => s.primaryTeacherId === t.id).length;
+
+    return `
+      <tr>
+        <td><strong>${t.name}</strong></td>
+        <td style="color:var(--color-text-secondary)">${t.alias || '—'}</td>
+        <td style="color:var(--color-text-secondary)">${t.email || '—'}</td>
+        <td><span class="badge badge-j">${studentCount} active</span></td>
+        <td style="font-family:var(--font-mono);font-size:11px;color:var(--color-text-tertiary)">${t.id}</td>
+      </tr>`;
+  }).join('');
+}
+
+function renderCodesView() {
+  const grid = document.querySelector('#view-codes .codes-grid');
+  const codes = Object.values(allMeetCodes);
+
+  let html = codes.map(c => {
+    // Simple check: is this code used in any session we have loaded?
+    const isUsed = currentSessions.some(s => s.meetingCodeId === c.id);
+    const statusClass = isUsed ? 'dot-busy' : 'dot-free';
+    const statusText = isUsed ? 'In use' : 'Available';
+
+    return `
+      <div class="code-card">
+        <div class="label">${c.label || 'No Label'}</div>
+        <div class="code">${c.code}</div>
+        <div class="usage">
+          <span class="status-dot ${statusClass}"></span>${statusText}
+        </div>
+      </div>`;
+  }).join('');
+  // Add the "+ Add room" placeholder back
+  html += `<div class="code-card" style="border:1.5px dashed var(--color-border-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--color-text-tertiary);min-height:80px;font-size:13px" onclick="openAddCodeModal()">+ Add room</div>`;
+  
+  grid.innerHTML = html;
+}
+
+async function loadAllData() {
+  console.log("Fetching all collections...");
+  // Run all your fetch functions in parallel
+  await Promise.all([
+    loadTeachers(),
+    loadStudents(),
+    loadMeetCodes()
+  ]);
+  
+  // Now that data is in memory, populate the UI[cite: 1, 2]
+  renderStudentsView();
+  renderTeachersView();
+  renderCodesView();
+  renderRosterSidebar(); 
+}
 </script>
 </body>
 </html>
