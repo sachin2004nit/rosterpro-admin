@@ -47,6 +47,8 @@
   --radius: 8px;
   --radius-lg: 12px;
   font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--color-text-primary); /* Change from --text to the light variable */
 }
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&display=swap');
 body { background: var(--bg); min-height: 100vh; }
@@ -59,6 +61,8 @@ select, input { font-family: inherit; color: var(--text); }
   flex-direction: column; gap: 20px;
 }
 .login-card {
+  color: var(--color-text-primary);
+  font-weight: 600;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 40px 48px; text-align: center;
   max-width: 360px; width: 100%;
@@ -82,7 +86,7 @@ select, input { font-family: inherit; color: var(--text); }
   padding: 0 20px; display: flex; align-items: center; gap: 4px;
   height: 48px; position: sticky; top: 0; z-index: 100;
 }
-.brand { font-size: 15px; font-weight: 600; letter-spacing: -.3px; margin-right: 16px; }
+.brand { font-size: 15px; font-weight: 600; letter-spacing: -.3px; margin-right: 16px; color: var(--color-text-primary); }
 .nav-tab {
   padding: 0 14px; height: 48px; font-size: 13px; border: none;
   background: none; cursor: pointer; color: var(--muted);
@@ -126,7 +130,7 @@ select, input { font-family: inherit; color: var(--text); }
   font-size: 13px; font-weight: 600; display: flex; justify-content: space-between;
   align-items: baseline;
 }
-.panel-hdr small { font-size: 11px; font-weight: 400; color: var(--hint); }
+.panel-hdr small { font-size: 11px; font-weight: 400; color: var(--color-text-primary); }
 .search-wrap { padding: 8px 10px; border-bottom: 1px solid var(--border); }
 .search-wrap input {
   width: 100%; padding: 5px 9px; border: 1px solid var(--border-md);
@@ -934,8 +938,8 @@ function renderSessionsView() {
   container.innerHTML = currentSessions.map((s, idx) => {
     const color  = sessionColor(idx);
     const cchip  = chipColor(idx);
-    const code   = allMeetCodes[s.meetingCodeId];
-    const codeStr = code ? code.code : (s.meetingCodeId || '—');
+    const code   = allMeetCodes[s.meeting_code];
+    const codeStr = code ? code.code : (s.meeting_code || '—');
     const codeLabel = code ? (code.label || code.code) : codeStr;
     const days   = (s.weekdays||[]).map(d => DAY_FULL[d]).join(' + ') || '—';
     const time   = formatTime(s.sessionTime);
@@ -1017,7 +1021,7 @@ function renderGridView() {
       }
       const idx   = currentSessions.indexOf(session);
       const color = sessionColor(idx);
-      const code  = allMeetCodes[session.meetingCodeId];
+      const code  = allMeetCodes[session.meeting_code];
       const codeShort = code ? (code.label || code.code.split('-')[0]+'…') : '—';
       const sids  = session.studentIds || [];
       const stuChips = sids.slice(0,4).map(sid => {
@@ -1342,7 +1346,7 @@ function renderCodesView() {
 
   let html = codes.map(c => {
     // Simple check: is this code used in any session we have loaded?
-    const isUsed = currentSessions.some(s => s.meetingCodeId === c.id);
+    const isUsed = currentSessions.some(s => s.meeting_code === c.code);
     const statusClass = isUsed ? 'dot-busy' : 'dot-free';
     const statusText = isUsed ? 'In use' : 'Available';
 
@@ -1376,7 +1380,6 @@ async function loadAllData() {
   renderCodesView();
   renderRosterSidebar(); 
 }
-
 
 //----ADD STUDENT -----------------------------
 
