@@ -1211,9 +1211,6 @@ function closeSessionModal() {
   document.getElementById('session-modal').classList.remove('open');
 }
 
-function closeStudentModal() {
-  document.getElementById('student-modal').classList.remove('open');
-}
 
 async function saveSession() {
   const btn   = document.getElementById('btn-save-session');
@@ -1429,8 +1426,8 @@ function openAddStudentModal() {
   document.getElementById('student-modal').style.display = 'flex';
 }
 
-function closeModal() {
-  document.getElementById('modal-overlay').style.display = 'none';
+function closeStudentModal() {
+  document.getElementById('student-modal').style.display = 'none';
 }
 
 async function saveStudent() {
