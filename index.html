@@ -402,10 +402,30 @@ select, input { font-family: inherit; color: var(--text); }
   border-top: 1px solid var(--color-border-tertiary);
 }
 .btn-cancel {
-  padding: 7px 16px; border: 1px solid var(--border-md); border-radius: var(--radius);
-  background: none; font-size: 13px; cursor: pointer;
+  /* Match dimensions of btn-primary */
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  
+  /* Visual style: Muted/Secondary */
+  background: transparent;
+  border: 0.5px solid var(--color-border-tertiary);
+  color: var(--color-text-secondary);
+  
+  transition: all 0.15s ease;
 }
-.btn-cancel:hover { background: var(--bg); }
+
+.btn-cancel:hover {
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-md);
+}
+
+.btn-cancel:active {
+  transform: scale(0.98);
+}
 .btn-save {
   padding: 7px 20px; border: none; border-radius: var(--radius);
   background: #1a4bbd; color: #fff; font-size: 13px;
@@ -614,7 +634,7 @@ select, input { font-family: inherit; color: var(--text); }
   <div class="modal">
     <div class="modal-hdr">
       <h3 id="modal-title">Add session</h3>
-      <button class="modal-close" onclick="closeModal()">×</button>
+      <button class="modal-close" onclick="closeModal('session-modal')">×</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="edit-roster-id">
@@ -657,15 +677,15 @@ select, input { font-family: inherit; color: var(--text); }
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" id="btn-save-session" onclick="saveSession()">Save session</button>
+      <button class="btn-cancel" onclick="closeModal('session-modal')">Cancel</button>
+      <button class="btn-primary" id="btn-save-session" onclick="saveSession()">Save session</button>
     </div>
   </div>
 </div>
 
 <!-- ── ADD / EDIT SESSION STUDENT ── -->
 
-<div id="modal-overlay" class="modal-overlay" style="display:none;">
+<div id="student-modal" class="modal-overlay" style="display:none;">
   <div class="modal-content">
     <h3>Add New Student</h3>
     <div class="form-group">
@@ -700,7 +720,7 @@ select, input { font-family: inherit; color: var(--text); }
       <input type="email" id="stu-parent-emails" placeholder="mom@email.com, dad@email.com">
     </div>
     <div class="modal-actions">
-      <button class="btn-sm" onclick="closeModal()">Cancel</button>
+      <button class="btn-cancel" onclick="closeModal('student-modal')">Cancel</button>
       <button class="btn-primary" onclick="saveStudent()">Save Student</button>
     </div>
   </div>
@@ -1187,8 +1207,8 @@ function populateCodeSelect(selectedId) {
 
 function toggleDay(btn) { btn.classList.toggle('selected'); }
 
-function closeModal() {
-  document.getElementById('session-modal').classList.remove('open');
+function closeModal(modalId) {
+  document.getElementById(modalId).classList.remove('open');
 }
 
 async function saveSession() {
@@ -1402,7 +1422,7 @@ function openAddStudentModal() {
     `<option value="${t.id}">${t.alias || t.name}</option>`
   ).join('');
   
-  document.getElementById('modal-overlay').style.display = 'flex';
+  document.getElementById('student-modal').style.display = 'flex';
 }
 
 function closeModal() {
