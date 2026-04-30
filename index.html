@@ -582,7 +582,7 @@ select, input { font-family: inherit; color: var(--text); }
     <div class="people-wrap">
       <div class="people-hdr"><h2>Students</h2><button class="btn-primary" onclick="openAddStudentModal()">+ Add student</button></div>
       <table class="data-table">
-        <thead><tr><th>Name</th><th>Level</th><th>Tier</th><th>Teacher</th><th>Display names</th><th>Registered</th></tr></thead>
+        <thead><tr><th>Name</th><th>Level</th><th>Tier</th><th>Teacher</th><th>Parent emails</th><th>Registered</th></tr></thead>
         <tbody>
         </tbody>
       </table>
@@ -690,6 +690,14 @@ select, input { font-family: inherit; color: var(--text); }
       <select id="stu-teacher-select">
         <!-- populated by JS -->
       </select>
+    </div>
+    <div class="form-group">
+      <label>Display Names (comma separated)</label>
+      <input type="text" id="stu-display-names" placeholder="e.g. Mother Name, Father Name on meetings">
+    </div>
+    <div class="form-group">
+      <label>Parent Emails (comma separated)</label>
+      <input type="email" id="stu-parent-emails" placeholder="mom@email.com, dad@email.com">
     </div>
     <div class="modal-actions">
       <button class="btn-sm" onclick="closeModal()">Cancel</button>
@@ -1306,9 +1314,10 @@ function renderStudentsView() {
     const teacher = allTeachers.find(t => t.id === s.primaryTeacherId);
     const teacherName = teacher ? (teacher.alias || teacher.name) : 'Unassigned';
     
-    // Format Display Names tags[cite: 1]
-    const tags = (s.displayNames || []).map(name => `<span class="tag">${name}</span>`).join('');
     const regDate = s.dateOfReg ? formatDate(s.dateOfReg) : '—';
+    const displayTags = (s.displayNames || []).map(name => `<span class="tag">${name}</span>`).join('');
+    const emailTags = (s.parentEmails || []).map(email => `<span class="tag" style="border-color:var(--blue-bdr)">${email}</span>`).join('');
+
 
     return `
       <tr>
@@ -1316,7 +1325,10 @@ function renderStudentsView() {
         <td><span class="badge badge-l">Lvl ${s.level || '?'}</span></td>
         <td><span class="badge badge-${s.tier === 'senior' ? 's' : 'j'}">${s.tier || '—'}</span></td>
         <td>${teacherName}</td>
-        <td><div class="tag-list">${tags}</div></td>
+        <td>
+          <div class="tag-list">${displayTags}</div>
+          <div class="tag-list" style="margin-top:4px">${emailTags}</div>
+        </td>
         <td style="color:var(--color-text-secondary)">${regDate}</td>
       </tr>`;
   }).join('');
@@ -1398,19 +1410,37 @@ function closeModal() {
 }
 
 async function saveStudent() {
+  // Helper to turn comma-string into clean array
+  const stringToArray = (str) => str ? str.split(',').map(item => item.trim()).filter(item => item !== "") : [];
   const newStudent = {
     name: document.getElementById('stu-name').value,
     level: parseInt(document.getElementById('stu-level').value),
     tier: document.getElementById('stu-tier').value,
     primaryTeacherId: document.getElementById('stu-teacher-select').value,
     status: 'active',
-    dateOfReg: new Date().toISOString()
+    dateOfReg: new Date().toISOString(),
+    displayNames: stringToArray(document.getElementById('stu-display-names').value),
+    parentEmails: stringToArray(document.getElementById('stu-parent-emails').value),
   };
 
   if (!newStudent.name) return alert("Please enter a name");
 
-  // Save to Firebase[cite: 1]
-  await db.collection('students').add(newStudent);
+  try {
+    await db.collection('students').add(newStudent);
+    showToast('Student added successfully!');
+    
+    // Reset inputs
+    document.getElementById('stu-name').value = "";
+    document.getElementById('stu-display-names').value = "";
+    document.getElementById('stu-parent-emails').value = "";
+    
+    await loadStudents(); 
+    renderStudentsView();
+    closeModal();
+  } catch (e) {
+    console.error("Error adding student: ", e);
+    alert("Error saving student.");
+  }
   
   // Refresh local data and UI
   await loadStudents(); 
