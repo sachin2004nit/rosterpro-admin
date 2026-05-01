@@ -192,7 +192,7 @@ select, input { font-family: inherit; color: var(--text); }
 .btn-add {
   padding: 5px 13px; font-size: 12px; border: 1px solid var(--border-md);
   border-radius: var(--radius); background: var(--surface); font-weight: 500;
-  transition: background .12s;
+  transition: background .12s; color:var(--color-text-primary)
 }
 .btn-add:hover { background: var(--bg); }
 
@@ -253,6 +253,45 @@ select, input { font-family: inherit; color: var(--text); }
   margin-left: 1px; padding: 0 1px; transition: opacity .12s;
 }
 .stu-chip .chip-rm:hover { opacity: 1; }
+
+.stu-dropdown-list {
+  position: absolute;
+  width: 100%;
+  max-height: 150px;
+  overflow-y: auto;
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: 6px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.stu-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+}
+
+.stu-item:hover {
+  background: var(--color-background-secondary);
+}
+
+.tag-list .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-background-secondary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.tag-remove {
+  cursor: pointer;
+  color: var(--danger);
+  font-weight: bold;
+}
 
 .chip-blue  { background: var(--blue-bg);   border-color: var(--blue-bdr);   color: var(--blue-text);   }
 .chip-blue  .chip-lvl { background: var(--blue-chip); color: var(--blue-text); }
@@ -637,7 +676,7 @@ select, input { font-family: inherit; color: var(--text); }
       <button class="modal-close" onclick="closeSessionModal()">×</button>
     </div>
     <div class="modal-body">
-      <input type="hidden" id="edit-roster-id">
+      <input type="hidden" id="clone-roster-id">
       <div class="form-group">
         <label>Meeting code</label>
         <select id="modal-code">
@@ -655,15 +694,27 @@ select, input { font-family: inherit; color: var(--text); }
         </div>
       </div>
       <div class="form-group">
-        <label>Repeat on</label>
-        <div class="day-picker">
-          <button class="day-btn" data-day="1" onclick="toggleDay(this)">Mo</button>
-          <button class="day-btn" data-day="2" onclick="toggleDay(this)">Tu</button>
-          <button class="day-btn" data-day="3" onclick="toggleDay(this)">We</button>
-          <button class="day-btn" data-day="4" onclick="toggleDay(this)">Th</button>
-          <button class="day-btn" data-day="5" onclick="toggleDay(this)">Fr</button>
-          <button class="day-btn" data-day="6" onclick="toggleDay(this)">Sa</button>
-          <button class="day-btn" data-day="0" onclick="toggleDay(this)">Su</button>
+        <label>Day of Week</label>
+        <select id="modal-day-select">
+          <option value="1">Monday</option>
+          <option value="2">Tuesday</option>
+          <option value="3">Wednesday</option>
+          <option value="4">Thursday</option>
+          <option value="5">Friday</option>
+          <option value="6">Saturday</option>
+          <option value="0">Sunday</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Add Students to this Session</label>
+        <div class="multi-select-container">
+          <input type="text" id="stu-search" placeholder="Type to find students..." oninput="filterStudentList()">
+          <div id="stu-dropdown" class="stu-dropdown-list" style="display:none;">
+            <!-- Populated dynamically: <div onclick="toggleStu(id)">Name</div> -->
+          </div>
+        </div>
+        <div id="selected-students-tags" class="tag-list" style="margin-top: 10px;">
+          <!-- Selected student chips appear here -->
         </div>
       </div>
       <div class="form-group">
@@ -766,6 +817,7 @@ let allMeetCodes  = {};          // id → code doc
 let allTeachers   = [];          // [{id, name, email, alias}]
 let currentTeacher = null;       // teacher doc
 let currentSessions = [];        // roster docs for selected teacher
+let sessionGroups = {};          // meet_day_time → [data, studentIds, docIds]
 let rosterUnsubscribe = null;    // firestore listener
 let activeFilters = new Set();   // 'junior' | 'senior' | 'free'
 let draggingStudentId = null;
@@ -905,6 +957,9 @@ function toggleFilter(key) {
   renderStudentList(document.getElementById('stu-search').value);
 }
 
+const getVirtualId = (s) => `${s.meeting_code}_${s.weekday}_${s.session_time}`;
+
+
 // ─────────────────────────────────────────────
 // TEACHER SELECT + ROSTER LOAD
 // ─────────────────────────────────────────────
@@ -913,6 +968,7 @@ function onTeacherChange() {
   document.getElementById('btn-add-session').disabled = !teacherId;
   if (rosterUnsubscribe) { rosterUnsubscribe(); rosterUnsubscribe = null; }
   currentSessions = [];
+  sessionGroups = {};
 
   if (!teacherId) {
     currentTeacher = null;
@@ -924,12 +980,33 @@ function onTeacherChange() {
   currentTeacher = allTeachers.find(t => t.id === teacherId);
   showSessionsLoading();
 
+
   rosterUnsubscribe = db.collection('teacher').doc(teacherId).collection('roster')
     .where('status','!=','deleted')
     .onSnapshot(snap => {
       currentSessions = [];
       snap.forEach(doc => currentSessions.push({ id: doc.id, ...doc.data() }));
-      currentSessions.sort((a,b) => (a.sessionTime||'').localeCompare(b.sessionTime||''));
+      currentSessions.sort((a,b) => (a.session_time||'').localeCompare(b.session_time||''));
+
+      sessionGroups = {};
+      studentCounter = 0;
+
+      currentSessions.forEach(record => {
+        const vId = getVirtualId(record);
+        if (!sessionGroups[vId]) {
+          sessionGroups[vId] = {
+            ...record, // Take base data from the first record
+            virtualId: vId,
+            studentIds: [], // We will collect all student IDs here
+            docIds: {} // Keep track of original doc IDs for deletion
+          };
+          console.warn('New session group:', vId, sessionGroups[vId].record);
+        }
+        sessionGroups[vId].studentIds.push(record.student_id);
+        sessionGroups[vId].docIds[record.student_id] = record.id;
+        studentCounter++;
+      });
+      console.log('##Session Count:', sessionGroups.size, ", ## total students in sessions:", studentCounter);
       renderSessionsView();
       renderGridView();
     }, err => {
@@ -938,7 +1015,7 @@ function onTeacherChange() {
         .onSnapshot(snap => {
           currentSessions = [];
           snap.forEach(doc => currentSessions.push({ id: doc.id, ...doc.data() }));
-          currentSessions.sort((a,b) => (a.sessionTime||'').localeCompare(b.sessionTime||''));
+          currentSessions.sort((a,b) => (a.session_time||'').localeCompare(b.session_time||''));
           renderSessionsView();
           renderGridView();
         });
@@ -963,15 +1040,17 @@ function renderSessionsView() {
     return;
   }
 
-  container.innerHTML = currentSessions.map((s, idx) => {
+  const groupsArray = Object.values(sessionGroups);
+
+  container.innerHTML = groupsArray.map((s, idx) => {
     const color  = sessionColor(idx);
     const cchip  = chipColor(idx);
     const code   = allMeetCodes[s.meeting_code];
     const codeStr = code ? code.code : (s.meeting_code || '—');
     const codeLabel = code ? (code.label || code.code) : codeStr;
-    const days   = (s.weekdays||[]).map(d => DAY_FULL[d]).join(' + ') || '—';
-    const time   = formatTime(s.sessionTime);
-    const dur    = s.durationMins ? `${s.durationMins} min` : '';
+    const day   = DAY_FULL[s.weekday] || '—';
+    const time   = formatTime(s.session_time);
+    const dur    = s.duration_mins ? `${s.duration_mins} min` : '';
     const studentIds = s.studentIds || [];
     const label  = s.label ? `<span style="font-size:11px;color:var(--hint);font-weight:400">${s.label}</span>` : '';
     const isGroup = studentIds.length > 1;
@@ -984,19 +1063,19 @@ function renderSessionsView() {
       return `<span class="stu-chip ${cchip}">
         <span class="chip-lvl ${tier}">${lvl}</span>
         <span class="chip-name">${stu.name||sid}</span>
-        <span class="chip-rm" onclick="removeStudentFromSession('${s.id}','${sid}',event)" title="Remove">×</span>
+        <span class="chip-rm" onclick="removeStudentFromSession('${s.virtualId}','${sid}',event)" title="Remove">×</span>
       </span>`;
     }).join('');
 
-    return `<div class="session-card" id="sc-${s.id}"
-      ondragover="onDragOverSession(event,'${s.id}')"
-      ondrop="onDropSession(event,'${s.id}')"
-      ondragleave="onDragLeaveSession('${s.id}')">
+    return `<div class="session-card" id="sc-${s.virtualId}"
+      ondragover="onDragOverSession(event,'${s.virtualId}')"
+      ondrop="onDropSession(event,'${s.virtualId}')"
+      ondragleave="onDragLeaveSession('${s.virtualId}')">
       <div class="sc-hdr">
         <div class="sc-accent" style="background:${color.text}"></div>
         <div class="sc-info">
           <div class="sc-title">
-            <span class="days">${days}</span>
+            <span class="days">${day}</span>
             <span class="time">· ${time}${dur ? ' · '+dur : ''}</span>
             ${isGroup ? '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:var(--amber-bg);color:var(--amber-text);border:1px solid var(--amber-bdr)">group</span>' : ''}
             ${label}
@@ -1006,13 +1085,13 @@ function renderSessionsView() {
         <div class="sc-right">
           <span class="code-pill" title="Meet code">${codeStr}</span>
           <span class="stu-count">${studentIds.length} student${studentIds.length!==1?'s':''}</span>
-          <button class="sc-btn" onclick="openEditSession('${s.id}')" title="Edit">✎</button>
-          <button class="sc-btn" onclick="deleteSession('${s.id}')" title="Delete" style="color:var(--danger)">✕</button>
+          <button class="sc-btn" onclick="cloneSession('${s.virtualId}')" title="Clone Session">❐</button>
+          <button class="sc-btn" onclick="deleteSession('${s.virtualId}')" title="Delete" style="color:var(--danger)">✕</button>
         </div>
       </div>
-      <div class="sc-body" id="scb-${s.id}">
+      <div class="sc-body" id="scb-${s.virtualId}">
         ${chips}
-        <div class="drop-zone" id="dz-${s.id}">Drop student here to assign</div>
+        <div class="drop-zone" id="dz-${s.virtualId}">Drop student here to assign</div>
       </div>
     </div>`;
   }).join('');
@@ -1026,8 +1105,8 @@ function renderGridView() {
   if (!currentSessions.length) { container.innerHTML = ''; return; }
 
   // build time slots from sessions
-  const times = [...new Set(currentSessions.map(s => s.sessionTime||'09:00'))].sort();
-  const activeDays = [...new Set(currentSessions.flatMap(s => s.weekdays||[]))].sort();
+  const times = [...new Set(currentSessions.map(s => s.session_time||'09:00'))].sort();
+  const activeDays = [...new Set(currentSessions.flatMap(s => s.weekday||[]))].sort();
   if (!activeDays.length) { container.innerHTML = ''; return; }
 
   const cols = activeDays.length;
@@ -1041,7 +1120,7 @@ function renderGridView() {
   times.forEach(t => {
     html += `<div class="wg-time">${formatTime(t)}</div>`;
     activeDays.forEach(day => {
-      const session = currentSessions.find(s => (s.weekdays||[]).includes(day) && s.sessionTime === t);
+      const session = currentSessions.find(s => (s.weekday||[]).includes(day) && s.session_time === t);
       if (!session) {
         html += `<div class="wg-cell" ondragover="govGrid(event,this)" ondrop="gdropGrid(event,this,'${t}',${day})" ondragleave="this.classList.remove('over')">
           <div class="wg-empty-hint">Drop here</div></div>`;
@@ -1051,7 +1130,7 @@ function renderGridView() {
       const color = sessionColor(idx);
       const code  = allMeetCodes[session.meeting_code];
       const codeShort = code ? (code.label || code.code.split('-')[0]+'…') : '—';
-      const sids  = session.studentIds || [];
+      const sids  = session.student_id || [];
       const stuChips = sids.slice(0,4).map(sid => {
         const stu = allStudents[sid];
         return `<span class="wb-stu" style="background:${color.chip};color:${color.text}">${stu?(stu.name||'').split(' ')[0]:'?'}</span>`;
@@ -1089,21 +1168,21 @@ function onDragEnd(ev) {
   ev.currentTarget.classList.remove('dragging');
 }
 
-function onDragOverSession(ev, sessionId) {
+function onDragOverSession(ev, virtualId) {
   ev.preventDefault();
   ev.dataTransfer.dropEffect = 'copy';
-  document.getElementById('sc-'+sessionId)?.classList.add('drop-active');
-  document.getElementById('dz-'+sessionId)?.classList.add('over');
+  document.getElementById('sc-'+virtualId)?.classList.add('drop-active');
+  document.getElementById('dz-'+virtualId)?.classList.add('over');
 }
-function onDragLeaveSession(sessionId) {
-  document.getElementById('sc-'+sessionId)?.classList.remove('drop-active');
-  document.getElementById('dz-'+sessionId)?.classList.remove('over');
+function onDragLeaveSession(virtualId) {
+  document.getElementById('sc-'+virtualId)?.classList.remove('drop-active');
+  document.getElementById('dz-'+virtualId)?.classList.remove('over');
 }
-async function onDropSession(ev, sessionId) {
+async function onDropSession(ev, virtualId) {
   ev.preventDefault();
-  onDragLeaveSession(sessionId);
+  onDragLeaveSession(virtualId);
   if (!draggingStudentId) return;
-  await addStudentToSession(sessionId, draggingStudentId);
+  await addStudentToSession(virtualId, draggingStudentId);
   draggingStudentId = null;
 }
 
@@ -1112,7 +1191,8 @@ async function gdropGrid(ev, el, time, day) {
   ev.preventDefault(); el.classList.remove('over');
   if (!draggingStudentId) return;
   // find or prompt which session at that slot
-  const session = currentSessions.find(s => (s.weekdays||[]).includes(day) && s.sessionTime === time);
+  // to-do: fix drop on grid view
+  const session = currentSessions.find(s => (s.weekday||[]).includes(day) && s.session_time === time);
   if (session) { await addStudentToSession(session.id, draggingStudentId); }
   draggingStudentId = null;
 }
@@ -1120,77 +1200,172 @@ async function gdropGrid(ev, el, time, day) {
 // ─────────────────────────────────────────────
 // FIRESTORE WRITES
 // ─────────────────────────────────────────────
-async function addStudentToSession(sessionId, studentId) {
-  const session = currentSessions.find(s => s.id === sessionId);
-  if (!session) return;
-  const existing = session.studentIds || [];
-  if (existing.includes(studentId)) { showToast('Already in this session'); return; }
+async function addStudentToSession(virtualId, studentId) {
+  
+  // 1. Find the group of records matching this virtual ID
+  const sessionGroup = sessionGroups[virtualId];
+  if (!sessionGroup) {
+    showToast('Session group not found' + virtualId);
+    return;
+  }
 
+  // 2. Check if this specific student is already in this virtual session
+  if (sessionGroup.studentIds.includes(studentId)) {
+    showToast('Student is already in this session');
+    return;
+  }
+
+  // 3. Perform Student-level Conflict Check
+  // Prevent adding if student is already in another room at the exact same time
+  const isConflict = currentSessions.find(s => 
+    s.student_id === studentId && 
+    s.weekday === sessionGroup.weekday && 
+    s.session_time === sessionGroup.session_time
+  );
+
+  if (isConflict) {
+    showToast(`Conflict: Student ${allStudents[studentId]?.name || studentId} already has a session at this time`);
+    return;
+  }  
+  
   const stu = allStudents[studentId];
   const name = stu?.name || studentId;
 
   try {
-    await db.collection('teacher').doc(currentTeacher.id)
-      .collection('roster').doc(sessionId)
-      .update({ studentIds: firebase.firestore.FieldValue.arrayUnion(studentId) });
-    showToast(`${name} added`);
-  } catch(e) { showToast('Error: '+e.message); }
+    const rosterRef = db.collection('teacher').doc(currentTeacher.id).collection('roster');
+    
+    // 4. Create a NEW document for this specific student in this slot
+    const docRef = await rosterRef.add({
+      student_id: studentId,
+      meeting_code: sessionGroup.meeting_code,
+      session_time: sessionGroup.session_time,
+      duration_mins: sessionGroup.duration_mins || 60,
+      weekday: sessionGroup.weekday, 
+      label: sessionGroup.label || null,
+      displayNames: stu?.displayNames || [],
+      timezone: 'Asia/Kolkata',
+      status: 'active',
+      crt_at: firebase.firestore.FieldValue.serverTimestamp(),
+      upd_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    showToast(`${name} added to session`);
+    sessionGroups[virtualId].studentIds.push(studentId);
+    sessionGroups[virtualId].docIds[studentId] = docRef.id;
+    // UI will auto-refresh if you have a snapshot listener on 'roster'
+  } catch(e) {
+    console.error("Drag-Drop Error:", e);
+    showToast('Error: ' + e.message);
+  }
 }
 
-async function removeStudentFromSession(sessionId, studentId, ev) {
+async function removeStudentFromSession(virtualId, studentId, ev) {
   ev.stopPropagation();
   const stu = allStudents[studentId];
+
+  // 1. Find the group of records matching this virtual ID
+  const sessionGroup = sessionGroups[virtualId];
+  if (!sessionGroup) {
+    showToast('Session group not found: ' + virtualId);
+    return;
+  } 
+
+  const docId = sessionGroup.docIds[studentId]; 
   const name = stu?.name || studentId;
+  if (!docId) {
+    showToast(`Student ${name} not found in this session`);
+    return;
+  }
+  
   if (!confirm(`Remove ${name} from this session?`)) return;
   try {
     await db.collection('teacher').doc(currentTeacher.id)
-      .collection('roster').doc(sessionId)
-      .update({ studentIds: firebase.firestore.FieldValue.arrayRemove(studentId) });
+      .collection('roster').doc(docId)
+      .delete();
+    
+    delete sessionGroup.docIds[studentId]; // Update local state immediately for snappier UI
+    sessionGroup.studentIds = sessionGroup.studentIds.filter(id => id !== studentId);
     showToast(`${name} removed`);
   } catch(e) { showToast('Error: '+e.message); }
 }
 
-async function deleteSession(sessionId) {
-  const s = currentSessions.find(x => x.id === sessionId);
-  const days = (s?.weekdays||[]).map(d=>DAY_FULL[d]).join('+');
-  if (!confirm(`Delete session (${days} ${formatTime(s?.sessionTime)})? Students will be unassigned.`)) return;
+async function deleteSession(virtualId) {
+
+  if (!confirm("Delete this session for all students?")) return;
+  // 1. Get the group from your sessionGroups object
+  const sessionGroup = sessionGroups[virtualId]; 
+  if (!sessionGroup) {
+    showToast("Session group not found: " + virtualId);
+    return;
+  }
+
+  // 2. Delete each document in the group
+  const batch = db.batch();
+  const rosterRef = db.collection('teacher').doc(currentTeacher.id).collection('roster');
+
+  // 2. Extract the Firestore document IDs from the docIds object
+  const firestoreDocIds = Object.values(sessionGroup.docIds);
+
+  // Add every document in this session to the batch delete[cite: 1]
+  firestoreDocIds.forEach(docId => {
+    batch.delete(rosterRef.doc(docId)); 
+  });
+
   try {
-    await db.collection('teacher').doc(currentTeacher.id)
-      .collection('roster').doc(sessionId)
-      .update({ status: 'deleted' });
-    showToast('Session deleted');
-  } catch(e) { showToast('Error: '+e.message); }
+    await batch.commit();
+    delete sessionGroups[virtualId]; // Remove from local state immediately for snappier UI update
+    showToast(`Session ${virtualId} deleted (${firestoreDocIds.length} records removed)`);
+    renderSessionsView(); // Re-render to reflect changes
+  } catch (e) {
+    showToast("Error deleting: " + e.message);
+  }
 }
 
 // ─────────────────────────────────────────────
 // ADD / EDIT SESSION MODAL
 // ─────────────────────────────────────────────
 function openAddSession() {
+  //mandatory to clear last selected students when opening modal for new session, 
+  //otherwise they will carry over from last creae/clone action which can cause confusion and accidental assignments
+  selectedStudentIds = [];
   document.getElementById('modal-title').textContent = 'Add session';
-  document.getElementById('edit-roster-id').value = '';
-  document.getElementById('modal-time').value = '09:00';
+  document.getElementById('clone-roster-id').value = '';
+  document.getElementById('modal-time').value = '17:00';
   document.getElementById('modal-duration').value = '60';
   document.getElementById('modal-label').value = '';
-  document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected'));
   populateCodeSelect();
   document.getElementById('conflict-warning').style.display = 'none';
   document.getElementById('session-modal').classList.add('open');
 }
 
-function openEditSession(sessionId) {
-  const s = currentSessions.find(x => x.id === sessionId);
-  if (!s) return;
-  document.getElementById('modal-title').textContent = 'Edit session';
-  document.getElementById('edit-roster-id').value = sessionId;
-  document.getElementById('modal-time').value = s.sessionTime || '09:00';
-  document.getElementById('modal-duration').value = s.durationMins || 60;
-  document.getElementById('modal-label').value = s.label || '';
-  document.querySelectorAll('.day-btn').forEach(b => {
-    b.classList.toggle('selected', (s.weekdays||[]).includes(parseInt(b.dataset.day)));
-  });
-  populateCodeSelect(s.meetingCodeId);
+function cloneSession(virtualId) {
+  document.getElementById('modal-title').textContent = 'Clone session';
+  selectedStudentIds = [];
+  
   document.getElementById('conflict-warning').style.display = 'none';
   document.getElementById('session-modal').classList.add('open');
+
+  // 1. Find the group of records matching this virtual ID
+  const sessionGroup = currentSessions.filter(s => getVirtualId(s) === virtualId);
+  if (sessionGroup.length === 0) return;
+
+  const template = sessionGroup[0];
+
+  // 2. Clear UI state
+  document.getElementById('clone-roster-id').value = virtualId; // Ensure it's a "Clone" operation
+  
+  // 3. Populate Student IDs from the entire group
+  selectedStudentIds = sessionGroup.map(s => s.student_id);
+
+  // 4. Fill Modal Fields
+  document.getElementById('modal-code').value = template.meeting_code;
+  document.getElementById('modal-time').value = template.session_time;
+  populateCodeSelect(template.meeting_code);
+  document.getElementById('modal-day-select').value = template.weekday;
+  document.getElementById('modal-label').value = template.label || "";
+
+  renderStudentTags();
+  document.getElementById('session-modal').style.display = 'flex';
 }
 
 function populateCodeSelect(selectedId) {
@@ -1213,59 +1388,119 @@ function closeSessionModal() {
 
 
 async function saveSession() {
-  const btn   = document.getElementById('btn-save-session');
-  const id    = document.getElementById('edit-roster-id').value;
-  const codeId= document.getElementById('modal-code').value;
-  const time  = document.getElementById('modal-time').value;
-  const dur   = parseInt(document.getElementById('modal-duration').value) || 60;
+
+  const isClone = !!document.getElementById('clone-roster-id').value;
+  
+  const btn = document.getElementById('btn-save-session');
+  const codeId = document.getElementById('modal-code').value;
+  const time = document.getElementById('modal-time').value;
+  const dur = parseInt(document.getElementById('modal-duration').value) || 60;
   const label = document.getElementById('modal-label').value.trim();
-  const days  = [...document.querySelectorAll('.day-btn.selected')].map(b => parseInt(b.dataset.day));
-
+  
+  // 1. Get the single selected day from the dropdown
+  const selectedDay = parseInt(document.getElementById('modal-day-select').value);
+  
+  // 2. Validation Checks
   if (!codeId) { alert('Please select a meeting code'); return; }
-  if (!days.length) { alert('Please select at least one day'); return; }
+  
+  // New: Ensure at least one student is selected from our global state
+  if (!selectedStudentIds || selectedStudentIds.length === 0) { 
+    alert('Select some students for this session'); 
+    return; 
+  }
 
-  // conflict check: same code, overlapping time, different session
-  const conflict = currentSessions.find(s =>
-    s.id !== id && s.meetingCodeId === codeId &&
-    s.sessionTime === time &&
-    (s.weekdays||[]).some(d => days.includes(d))
+  if (isClone) {
+    const originalVirtualId = document.getElementById('clone-roster-id').value;
+    const original = sessionGroups[originalVirtualId];
+    
+    // Check if they are trying to save the clone with the exact same constraints
+    if (original && 
+        original.meeting_code === codeId && 
+        original.session_time === time && 
+        original.weekday === selectedDay) {
+          console.warn('Duplicate session detected:', { original, attempted: { codeId, time, selectedDay } });
+      alert("This is an exact duplicate of the original session. Please change the Day/Time/Meeting before saving.");
+      return;
+    }
+  }
+
+  // 3. Conflict Check (Refined for single day)
+  const conflict = currentSessions.find(s => 
+    s.meeting_code === codeId &&
+    s.session_time === time &&
+    s.weekday === selectedDay // Check if this day is in that session
   );
-  if (conflict) {
+
+  const conflicts = [];
+  
+  selectedStudentIds.forEach(stuId => {
+    // Check if THIS specific student is already booked at THIS time/day
+    const isBooked = currentSessions.find(s => 
+      s.student_id === stuId && 
+      s.weekday === selectedDay && 
+      s.session_time === time
+    );
+    
+    if (isBooked) {
+      const studentName = allStudents.find(a => a.id === stuId)?.name || stuId;
+      conflicts.push(studentName);
+    }
+  });
+
+  
+
+  if (conflict || conflicts.length > 0) {
+    if (conflict) {
+      showToast('Conflict: Another session already exists at this time');
+    } else {
+      console.log('Conflicting students:', conflicts );
+      showToast(`Conflict: ${conflicts.length} selected student(s) already have a session at this time`);
+    }
     document.getElementById('conflict-warning').style.display = 'block';
-    // also check across other teachers (basic — full cross-teacher check needs a query)
     return;
   }
   document.getElementById('conflict-warning').style.display = 'none';
 
-  btn.disabled = true; btn.textContent = 'Saving…';
-  const data = {
-    meetingCodeId: codeId,
-    sessionTime:   time,
-    durationMins:  dur,
-    weekdays:      days,
-    label:         label || null,
-    timezone:      'Asia/Kolkata',
-    status:        'active',
-  };
+  btn.disabled = true; 
+  btn.textContent = 'Saving…';
+
+  const batch = db.batch();
+  const rosterRef = db.collection('teacher').doc(currentTeacher.id).collection('roster');
 
   try {
-    const ref = db.collection('teacher').doc(currentTeacher.id).collection('roster');
-    if (id) {
-      await ref.doc(id).update(data);
-      showToast('Session updated');
-    } else {
-      data.studentIds = [];
-      data.createdAt  = firebase.firestore.FieldValue.serverTimestamp();
-      await ref.add(data);
-      showToast('Session created');
-    }
-    closeModal();
-  } catch(e) {
-    showToast('Error: '+e.message);
+    // NEW SESSION / CLONE (only)
+    // We create a separate document for every single student selected
+    
+    selectedStudentIds.forEach(studentId => {
+      const stu = allStudents[studentId];
+      const newDocRef = rosterRef.doc(); // Generate a fresh ID for each student doc
+      batch.set(newDocRef, {
+        student_id: studentId, // Crucial: One student per doc
+        meeting_code: codeId,
+        session_time: time,
+        duration_mins: dur,
+        weekday: selectedDay, 
+        displayNames: stu?.displayNames || [],
+        label: label || null,
+        timezone: 'Asia/Kolkata',
+        status: 'active',
+        crt_at: firebase.firestore.FieldValue.serverTimestamp(),
+        upd_at: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    await batch.commit();
+    showToast(`${selectedStudentIds.length} student sessions created`);
+    closeSessionModal();
+  } catch (e) {
+    console.error("Batch Save Error:", e);
+    showToast('Error: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = 'Save session';
+    btn.disabled = false; 
+    btn.textContent = 'Save session';
   }
 }
+
 
 // ─────────────────────────────────────────────
 // VIEW SWITCHING
@@ -1467,6 +1702,45 @@ async function saveStudent() {
   await loadStudents(); 
   renderStudentsView();
   closeModal();
+}
+
+//---- SESSION CREATION & CLONING HELPERS -----------------------------
+let selectedStudentIds = []; // Global state for the modal
+
+function filterStudentList() {
+  const q = document.getElementById('stu-search').value.toLowerCase();
+  const list = document.getElementById('stu-dropdown');
+  
+  // Assuming allStudents is your master array from the roster load
+  const html = allStudents
+    .filter(s => s.name.toLowerCase().includes(q) && !selectedStudentIds.includes(s.id))
+    .map(s => `<div class="stu-item" onclick="addStudentToModalSession('${s.id}', '${s.name}')">${s.name}</div>`)
+    .join('');
+    
+  list.innerHTML = html;
+  list.style.display = html ? 'block' : 'none';
+}
+
+function addStudentToModalSession(id, name) {
+  if (!selectedStudentIds.includes(id)) {
+    selectedStudentIds.push(id);
+    renderStudentTags();
+  }
+  document.getElementById('stu-search').value = '';
+  document.getElementById('stu-dropdown').style.display = 'none';
+}
+
+function renderStudentTags() {
+  const container = document.getElementById('selected-students-tags');
+  container.innerHTML = selectedStudentIds.map(id => {
+    const s = allStudents.find(x => x.id === id);
+    return `<span class="tag">${s ? s.name : id} <span class="tag-remove" onclick="removeStudent('${id}')">×</span></span>`;
+  }).join('');
+}
+
+function removeStudent(id) {
+  selectedStudentIds = selectedStudentIds.filter(sid => sid !== id);
+  renderStudentTags();
 }
 
 </script>
