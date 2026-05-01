@@ -293,12 +293,42 @@ select, input { font-family: inherit; color: var(--text); }
   font-weight: bold;
 }
 
-.chip-blue  { background: var(--blue-bg);   border-color: var(--blue-bdr);   color: var(--blue-text);   }
-.chip-blue  .chip-lvl { background: var(--blue-chip); color: var(--blue-text); }
-.chip-green { background: var(--green-bg);  border-color: var(--green-bdr);  color: var(--green-text);  }
-.chip-green .chip-lvl { background: #b6e0bb; color: var(--green-text); }
-.chip-amber { background: var(--amber-bg);  border-color: var(--amber-bdr);  color: var(--amber-text);  }
-.chip-amber .chip-lvl { background: #f9d89a; color: var(--amber-text); }
+/* Deep, Readable Green */
+.chip-green { 
+  background: rgba(16, 41, 24, 0.6); /* Deep forest translucent */
+  border: 1px solid #2e7d32;         /* Vibrant border */
+  color: #a5d6a7;                    /* Light mint text for high contrast */
+}
+
+/* The little level box inside green */
+.chip-green .chip-lvl { 
+  background: #2e7d32;               /* Solid dark green */
+  color: #ffffff;                    /* Pure white for the number */
+}
+
+/* Deep, Readable Amber */
+.chip-amber { 
+  background: rgba(62, 39, 0, 0.6);  /* Deep burnt orange translucent */
+  border: 1px solid #f57c00;         /* Vibrant border */
+  color: #ffcc80;                    /* Light peach/amber text */
+}
+
+/* The little level box inside amber */
+.chip-amber .chip-lvl { 
+  background: #f57c00;               /* Solid dark orange */
+  color: #ffffff; 
+}
+
+/* For Reference: Keeping Blue consistent */
+.chip-blue { 
+  background: rgba(13, 35, 59, 0.6); 
+  border: 1px solid #1976d2; 
+  color: #90caf9; 
+}
+.chip-blue .chip-lvl { 
+  background: #1976d2; 
+  color: #ffffff; 
+}
 .chip-gray  { background: var(--bg);        border-color: var(--border-md);  color: var(--muted);       }
 .chip-gray  .chip-lvl { background: #e0ddd8; color: var(--muted); }
 
