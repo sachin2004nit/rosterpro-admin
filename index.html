@@ -1001,6 +1001,7 @@ async function loadStudents() {
   const snap = await db.collection('students').where('status','!=','deleted').get().catch(() => db.collection('students').get());
   allStudents = {};
   snap.forEach(doc => { allStudents[doc.id] = { id: doc.id, ...doc.data() }; });
+  console.log('Loaded students: Count', Object.keys(allStudents).length);
   renderStudentList();
 }
 
@@ -1106,7 +1107,16 @@ function onTeacherChange() {
     .onSnapshot(snap => {
       currentSessions = [];
       snap.forEach(doc => currentSessions.push({ id: doc.id, ...doc.data() }));
-      currentSessions.sort((a,b) => (a.session_time||'').localeCompare(b.session_time||''));
+      currentSessions.sort((a, b) => {
+        // 1. Sort by Weekday (Integer: 0 for Monday, 6 for Sunday)
+        if (a.weekday !== b.weekday) {
+          return a.weekday - b.weekday;
+        }
+
+        // 2. Sort by Session Time (String: "14:00" vs "16:30")
+        // Since they are in 24h format, a standard string comparison works perfectly.
+        return a.session_time.localeCompare(b.session_time);
+      });
 
       sessionGroups = {};
       studentCounter = 0;
@@ -1120,13 +1130,13 @@ function onTeacherChange() {
             studentIds: [], // We will collect all student IDs here
             docIds: {} // Keep track of original doc IDs for deletion
           };
-          console.warn('New session group:', vId, sessionGroups[vId].record);
+          console.warn('New session group:', vId, ""+record);
         }
         sessionGroups[vId].studentIds.push(record.student_id);
         sessionGroups[vId].docIds[record.student_id] = record.id;
         studentCounter++;
       });
-      console.log('##Session Count:', sessionGroups.length, ", ## total students in sessions:", studentCounter +" teacher "+teacherId);
+      console.log('##Session Count:', Object.keys(sessionGroups).length, ", ## total students sessions:", studentCounter +" teacher "+teacherId);
       renderSessionsView();
       renderGridView();
     }, err => {
@@ -1135,7 +1145,16 @@ function onTeacherChange() {
         .onSnapshot(snap => {
           currentSessions = [];
           snap.forEach(doc => currentSessions.push({ id: doc.id, ...doc.data() }));
-          currentSessions.sort((a,b) => (a.session_time||'').localeCompare(b.session_time||''));
+          currentSessions.sort((a, b) => {
+            // 1. Sort by Weekday (Integer: 0 for Monday, 6 for Sunday)
+            if (a.weekday !== b.weekday) {
+              return a.weekday - b.weekday;
+            }
+
+            // 2. Sort by Session Time (String: "14:00" vs "16:30")
+            // Since they are in 24h format, a standard string comparison works perfectly.
+            return a.session_time.localeCompare(b.session_time);
+          });
           renderSessionsView();
           renderGridView();
         });
@@ -1160,6 +1179,8 @@ function renderSessionsView() {
     return;
   }
 
+  console.log('Rendering sessions view with ALL students :', allStudents.keys().join(','));
+
   const groupsArray = Object.values(sessionGroups);
 
   container.innerHTML = groupsArray.map((s, idx) => {
@@ -1172,12 +1193,17 @@ function renderSessionsView() {
     const time   = formatTime(s.session_time);
     const dur    = s.duration_mins ? `${s.duration_mins} min` : '';
     const studentIds = s.studentIds || [];
+    console.log('Rendering session', s.virtualId, 'with students', studentIds.join(','));
     const label  = s.label ? `<span style="font-size:11px;color:var(--hint);font-weight:400">${s.label}</span>` : '';
     const isGroup = studentIds.length > 1;
 
     const chips = studentIds.map(sid => {
       const stu = allStudents[sid];
-      if (!stu) return '';
+      if (!stu) 
+      { 
+        console.warn('Student not found for id-', sid, 'in session -', s.virtualId);
+        return '';
+      }
       const tier = stu.tier === 'senior' ? 'lvl-s' : 'lvl-j';
       const lvl  = stu.level || '?';
       return `<span class="stu-chip ${cchip}">
@@ -1206,6 +1232,7 @@ function renderSessionsView() {
           <span class="code-pill" title="Meet code">${codeStr}</span>
           <span class="stu-count">${studentIds.length} student${studentIds.length!==1?'s':''}</span>
           <button class="sc-btn" onclick="cloneSession('${s.virtualId}')" title="Clone Session">❐</button>
+          <button class="sc-btn" onclick="editSession('${s.virtualId}')" title="Edit Session">✎</button>
           <button class="sc-btn" onclick="deleteSession('${s.virtualId}')" title="Delete" style="color:var(--danger)">✕</button>
         </div>
       </div>
@@ -1461,6 +1488,65 @@ function openAddSession() {
   document.getElementById('selected-students-tags').innerHTML = '';
   document.getElementById('conflict-warning').style.display = 'none';
   populateCodeSelect();
+  document.getElementById('session-modal').classList.add('open');
+}
+
+async function updateSessionBatch(oldVirtualId, newSessionData) {
+  const sessionGroup = sessionGroups[oldVirtualId];
+  if (!sessionGroup) return;
+
+  const { meeting_code, weekday, session_time } = newSessionData;
+  const batch = db.batch();
+  const rosterRef = db.collection('teacher').doc(currentTeacher.id).collection('roster');
+
+  // Loop through all document IDs in this virtual group
+  Object.values(sessionGroup.docIds).forEach(docId => {
+    batch.update(rosterRef.doc(docId), {
+      meeting_code: meeting_code,
+      weekday: parseInt(weekday),
+      session_time: session_time,
+      upd_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  });
+
+  try {
+    await batch.commit();
+    showToast(`Session updated for ${sessionGroup.studentIds.length} students`);
+    closeSessionModal();
+  } catch (e) {
+    showToast("Error updating session: " + e.message);
+  }
+}
+
+function editSession(virtualId) {
+  selectedStudentIds = [];
+  document.getElementById('conflict-warning').style.display = 'none';
+
+  const sessionGroup = currentSessions.filter(s => getVirtualId(s) === virtualId);
+  if (sessionGroup.length === 0) { showToast('Session not found'); return; }
+
+  const template = sessionGroup[0];
+
+  document.getElementById('modal-title').textContent = 'Edit session';
+  document.getElementById('clone-roster-id').value = "";
+  document.getElementById('edit-roster-id').value = virtualId;
+
+  // populate code dropdown first, then set selected value
+  populateCodeSelect(template.meeting_code);
+  
+  document.getElementById('modal-time').value = template.session_time || '09:00';
+  document.getElementById('modal-duration').value = template.duration_mins || 60;
+  document.getElementById('modal-day-select').value = template.weekday;
+  document.getElementById('modal-label').value = template.label || '';
+
+  // pre-fill students from the entire group
+  selectedStudentIds = sessionGroup.map(s => s.student_id).filter(Boolean);
+  renderStudentTags();
+
+  // clear search box
+  document.getElementById('modal-stu-search').value = '';
+  document.getElementById('stu-dropdown').style.display = 'none';
+
   document.getElementById('session-modal').classList.add('open');
 }
 
