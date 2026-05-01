@@ -1791,7 +1791,7 @@ async function saveStudent(keepOpen = false) {
   // Helper to turn comma-string into clean array
   const stuId = document.getElementById('edit-stu-id').value;
   const stringToArray = (str) => str ? str.split(',').map(item => item.trim()).filter(item => item !== "") : [];
-  const newStudent = {
+  const studentData = {
     name: document.getElementById('stu-name').value,
     level: parseInt(document.getElementById('stu-level').value),
     tier: document.getElementById('stu-tier').value,
@@ -1802,7 +1802,7 @@ async function saveStudent(keepOpen = false) {
     upd_at: firebase.firestore.FieldValue.serverTimestamp(),
   };
 
-  if (!newStudent.name) return alert("Please enter a name");
+  if (!studentData.name) return alert("Please enter a name");
 
   try {
 
@@ -1945,6 +1945,40 @@ async function saveMeetingCode() {
     code: document.getElementById('code-value').value,
     defaultTeacher: document.getElementById('code-default-teacher').value
   };
+
+  try {
+    if (id) {
+      await db.collection('meetingCodes').doc(id).update(data);
+    } else {
+      await db.collection('meetingCodes').add(data);
+    }
+    document.getElementById('code-modal').style.display = 'none';
+    loadMeetCodes();
+    closeCodeModal();
+  } catch (e) { showToast("Error: " + e.message); }
+}
+
+/**
+ * Closes the Meeting Code modal and resets its internal state.
+ */
+function closeCodeModal() {
+  const modal = document.getElementById('code-modal');
+  
+  // 1. Hide the modal overlay
+  modal.style.display = 'none';
+  
+  // 2. Clear the hidden ID field to ensure the next 'Add' starts fresh
+  document.getElementById('edit-code-id').value = "";
+  
+  // 3. Clear the input fields
+  document.getElementById('code-label').value = "";
+  document.getElementById('code-value').value = "";
+  
+  // 4. Reset the teacher dropdown to default[cite: 1]
+  const teacherSelect = document.getElementById('code-default-teacher');
+  if (teacherSelect) {
+    teacherSelect.value = "";
+  }
 }
 
 </script>
