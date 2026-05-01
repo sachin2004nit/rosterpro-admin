@@ -11,32 +11,44 @@
 /* ── reset & base ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg:        #f5f4f0;
-  --surface:   #ffffff;
-  --border:    rgba(0,0,0,.09);
-  --border-md: rgba(0,0,0,.15);
-  --text:      #1a1a1a;
-  --muted:     #6b6b6b;
-  --hint:      #a0a0a0;
-  --blue-bg:   #e8f0fe;
-  --blue-bdr:  #93b4f7;
-  --blue-text: #1a4bbd;
-  --blue-chip: #c2d4fc;
-  --green-bg:  #e6f4ea;
-  --green-bdr: #86c98e;
-  --green-text:#1a6b2a;
-  --purple-bg: #f0ebfe;
-  --purple-bdr:#b89df5;
-  --purple-text:#4a1fb8;
-  --amber-bg:  #fef3e2;
-  --amber-bdr: #f5c06a;
-  --amber-text:#7a4a00;
-  --danger:    #c0392b;
-  --radius:    8px;
+  /* Core Midnight Palette */
+  --color-background-primary: #1a1a1a;   
+  --color-background-secondary: #262626; 
+  --color-background-tertiary: #121212;  
+  --color-border-tertiary: #333333;      
+  --color-text-primary: #e5e7eb;         
+  --color-text-secondary: #9ca3af;       
+  --color-text-tertiary: #6b7280;        
+
+  /* Mapping old "Light" names to the "Dark" palette */
+  --bg: var(--color-background-tertiary);
+  --surface: var(--color-background-primary);
+  --text: var(--color-text-primary);
+  --muted: var(--color-text-secondary);
+  --border: var(--color-border-tertiary);
+  --border-md: #444444;
+  --hint: var(--color-text-tertiary);
+
+  /* Functional Colors */
+  --blue-bg: rgba(55, 138, 221, 0.15);
+  --blue-bdr: #378ADD;
+  --blue-text: #60a5fa;
+  --green-bg: rgba(29, 158, 117, 0.15);
+  --green-bdr: #1D9E75;
+  --green-text: #34d399;
+  --purple-bg: rgba(168, 85, 247, 0.15);
+  --purple-bdr: #a855f7;
+  --purple-text: #c084fc;
+  --amber-bg: rgba(239, 159, 39, 0.15);
+  --amber-bdr: #EF9F27;
+  --amber-text: #fbbf24;
+  --danger: #ef4444;
+
+  --radius: 8px;
   --radius-lg: 12px;
   font-family: 'DM Sans', system-ui, sans-serif;
   font-size: 14px;
-  color: var(--text);
+  color: var(--color-text-primary); /* Change from --text to the light variable */
 }
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&display=swap');
 body { background: var(--bg); min-height: 100vh; }
@@ -49,6 +61,8 @@ select, input { font-family: inherit; color: var(--text); }
   flex-direction: column; gap: 20px;
 }
 .login-card {
+  color: var(--color-text-primary);
+  font-weight: 600;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 40px 48px; text-align: center;
   max-width: 360px; width: 100%;
@@ -72,7 +86,7 @@ select, input { font-family: inherit; color: var(--text); }
   padding: 0 20px; display: flex; align-items: center; gap: 4px;
   height: 48px; position: sticky; top: 0; z-index: 100;
 }
-.brand { font-size: 15px; font-weight: 600; letter-spacing: -.3px; margin-right: 16px; }
+.brand { font-size: 15px; font-weight: 600; letter-spacing: -.3px; margin-right: 16px; color: var(--color-text-primary); }
 .nav-tab {
   padding: 0 14px; height: 48px; font-size: 13px; border: none;
   background: none; cursor: pointer; color: var(--muted);
@@ -116,7 +130,7 @@ select, input { font-family: inherit; color: var(--text); }
   font-size: 13px; font-weight: 600; display: flex; justify-content: space-between;
   align-items: baseline;
 }
-.panel-hdr small { font-size: 11px; font-weight: 400; color: var(--hint); }
+.panel-hdr small { font-size: 11px; font-weight: 400; color: var(--color-text-primary); }
 .search-wrap { padding: 8px 10px; border-bottom: 1px solid var(--border); }
 .search-wrap input {
   width: 100%; padding: 5px 9px; border: 1px solid var(--border-md);
@@ -178,7 +192,7 @@ select, input { font-family: inherit; color: var(--text); }
 .btn-add {
   padding: 5px 13px; font-size: 12px; border: 1px solid var(--border-md);
   border-radius: var(--radius); background: var(--surface); font-weight: 500;
-  transition: background .12s;
+  transition: background .12s; color:var(--color-text-primary)
 }
 .btn-add:hover { background: var(--bg); }
 
@@ -239,6 +253,45 @@ select, input { font-family: inherit; color: var(--text); }
   margin-left: 1px; padding: 0 1px; transition: opacity .12s;
 }
 .stu-chip .chip-rm:hover { opacity: 1; }
+
+.stu-dropdown-list {
+  position: absolute;
+  width: 100%;
+  max-height: 150px;
+  overflow-y: auto;
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: 6px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.stu-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+}
+
+.stu-item:hover {
+  background: var(--color-background-secondary);
+}
+
+.tag-list .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-background-secondary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.tag-remove {
+  cursor: pointer;
+  color: var(--danger);
+  font-weight: bold;
+}
 
 .chip-blue  { background: var(--blue-bg);   border-color: var(--blue-bdr);   color: var(--blue-text);   }
 .chip-blue  .chip-lvl { background: var(--blue-chip); color: var(--blue-text); }
@@ -319,19 +372,32 @@ select, input { font-family: inherit; color: var(--text); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── modal ── */
+
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-content {
+  background: var(--color-background-primary);
+  padding: 24px; border-radius: 12px; border: 1px solid var(--color-border-tertiary);
+  width: 100%; max-width: 400px;
+}
+
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
 .modal-backdrop {
   display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35);
   z-index: 200; align-items: center; justify-content: center;
 }
 .modal-backdrop.open { display: flex; }
 .modal {
-  background: var(--surface); border-radius: var(--radius-lg);
-  width: 440px; max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 60px); overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0,0,0,.15);
+  background: var(--color-background-primary); /* Dark Background */
+  border: 1px solid var(--color-border-tertiary);
+  color: var(--color-text-primary);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5); /* Heavier shadow for dark mode */
 }
 .modal-hdr {
-  padding: 16px 20px 14px; border-bottom: 1px solid var(--border);
+  padding: 16px 20px 14px; border-bottom: 1px solid var(--color-border-tertiary);
   display: flex; align-items: center; justify-content: space-between;
 }
 .modal-hdr h3 { font-size: 15px; font-weight: 600; }
@@ -343,29 +409,62 @@ select, input { font-family: inherit; color: var(--text); }
 .modal-close:hover { background: var(--bg); }
 .modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
 .form-row { display: flex; gap: 10px; }
-.form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; }
-.form-group label { font-size: 12px; font-weight: 500; color: var(--muted); }
+.form-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.form-group.row { display: flex; gap: 12px; }
+.form-group label { display: block; font-weight: 500; font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
 .form-group input, .form-group select {
-  padding: 7px 10px; border: 1px solid var(--border-md); border-radius: var(--radius);
-  font-size: 13px; background: var(--bg); outline: none;
+  width: 100%; border: 1px solid var(--color-border-tertiary); color: white; border-radius: 6px;
+  background: var(--color-background-secondary); border: 1px solid var(--color-border-tertiary);
+  color: var(--color-text-primary); padding: 7px 10px; border-radius: var(--radius);
+  font-size: 13px; outline: none;
 }
-.form-group input:focus, .form-group select:focus { border-color: #93b4f7; background: var(--surface); }
+.form-group input:focus, .form-group select:focus {
+  border-color: var(--color-accent-blue);
+  background: var(--color-background-secondary);
+}
 .day-picker { display: flex; gap: 5px; }
 .day-btn {
+  background: var(--color-background-secondary);
+  border-color: var(--color-border-tertiary);
+  color: var(--color-text-secondary);
   width: 34px; height: 34px; border-radius: var(--radius); border: 1px solid var(--border-md);
-  background: none; font-size: 11px; font-weight: 600; cursor: pointer;
-  transition: all .12s; color: var(--muted);
+  font-size: 11px; font-weight: 600; cursor: pointer;
+  transition: all .12s;
+}
+.day-btn:hover {
+  background: var(--color-border-tertiary);
 }
 .day-btn.selected { background: var(--blue-bg); border-color: var(--blue-bdr); color: var(--blue-text); }
 .modal-footer {
+  background: var(--color-background-tertiary); /* Slightly darker footer */
   padding: 12px 20px 16px; display: flex; justify-content: flex-end; gap: 8px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--color-border-tertiary);
 }
 .btn-cancel {
-  padding: 7px 16px; border: 1px solid var(--border-md); border-radius: var(--radius);
-  background: none; font-size: 13px; cursor: pointer;
+  /* Match dimensions of btn-primary */
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  
+  /* Visual style: Muted/Secondary */
+  background: transparent;
+  border: 0.5px solid var(--color-border-tertiary);
+  color: var(--color-text-secondary);
+  
+  transition: all 0.15s ease;
 }
-.btn-cancel:hover { background: var(--bg); }
+
+.btn-cancel:hover {
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-md);
+}
+
+.btn-cancel:active {
+  transform: scale(0.98);
+}
 .btn-save {
   padding: 7px 20px; border: none; border-radius: var(--radius);
   background: #1a4bbd; color: #fff; font-size: 13px;
@@ -397,6 +496,114 @@ select, input { font-family: inherit; color: var(--text); }
 }
 .placeholder-view h2 { font-size: 16px; font-weight: 500; color: var(--muted); }
 .placeholder-view p { font-size: 13px; }
+
+/* ── PEOPLE VIEWS ── */
+.people-wrap{flex:1;padding:16px;display:flex;flex-direction:column;gap:12px}
+.people-hdr{display:flex;align-items:center;gap:10px}
+.people-hdr h2{font-size:15px;font-weight:500;flex:1}
+.btn-primary{padding:6px 14px;font-size:13px;border:0.5px solid var(--color-border-primary);border-radius:6px;background:var(--color-background-primary);cursor:pointer;color:var(--color-text-primary);font-weight:500}
+.btn-primary:hover{background:var(--color-background-secondary)}
+.btn-secondary {
+  padding: 6px 14px;
+  font-size: 13px;
+  border: 0.5px solid transparent; /* Keeps sizing consistent with primary */
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text-secondary); /* Dimmer than primary text */
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-primary);
+}
+.data-table{width:100%;border-collapse:collapse;font-size:13px;background:var(--color-background-primary);border-radius:10px;overflow:hidden;border:0.5px solid var(--color-border-tertiary)}
+.data-table th{text-align:left;padding:10px 14px;font-weight:500;font-size:12px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.data-table td{padding:10px 14px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary)}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--color-background-secondary)}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px}
+.badge-j{background:#E1F5EE;color:#085041}
+.badge-s{background:#EEEDFE;color:#534AB7}
+.badge-l{background:#FAEEDA;color:#633806}
+.tag-list{display:flex;gap:4px;flex-wrap:wrap}
+.tag{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--color-text-secondary)}
+
+/* CODES VIEW */
+.codes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.code-card{
+  background:var(--color-background-primary);
+  border:1px solid var(--color-border-tertiary);
+  border-radius:10px;padding:14px;
+  position: relative;
+  transition: transform 0.1s ease, border-color 0.2s ease;
+}
+.code-card .label{font-size:13px;font-weight:500;margin-bottom:4px}
+.code-card .code{font-family:var(--font-mono,monospace);font-size:13px;color:var(--color-text-secondary);letter-spacing:.04em}
+.code-card .usage{font-size:11px;color:var(--color-text-tertiary);margin-top:6px}
+.code-card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.add-card-dashed {
+  border: 1.5px dashed var(--color-border-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  min-height: 100px;
+  font-size: 13px;
+}
+
+.add-card-dashed:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-primary);
+}
+
+.btn-icon-edit:hover {
+  color: var(--color-primary) !important;
+  text-decoration: underline;
+}
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px}
+.dot-free{background:#1D9E75}
+.dot-busy{background:#E24B4A}
+
+.teacher-info {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-top: 8px;
+  padding-top: 4px;
+  border-top: 1px inset var(--color-border-secondary); /* Optional: thin line to separate */
+  display: block;
+}
+
+.teacher-info strong {
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+/* Dark Scrollbars for Chrome/Edge/Safari */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-background-tertiary);
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
 </style>
 </head>
 <body>
@@ -495,13 +702,32 @@ select, input { font-family: inherit; color: var(--text); }
     <div class="placeholder-view"><h2>Calendar view</h2><p>Coming next</p></div>
   </div>
   <div class="view" id="view-students">
-    <div class="placeholder-view"><h2>Students</h2><p>Coming next</p></div>
+    <div class="people-wrap">
+      <div class="people-hdr"><h2>Students</h2><button class="btn-primary" onclick="openAddStudentModal()">+ Add student</button></div>
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Level</th><th>Tier</th><th>Teacher</th><th>Parent emails/displayNames</th><th>Registered</th><th>Actions</th></tr></thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
   </div>
   <div class="view" id="view-teachers">
-    <div class="placeholder-view"><h2>Teachers</h2><p>Coming next</p></div>
+    <div class="people-wrap">
+    <div class="people-hdr"><h2>Teachers</h2><button class="btn-primary">+ Add teacher</button></div>
+    <table class="data-table">
+      <thead><tr><th>Name</th><th>Alias</th><th>Email</th><th>Students</th><th>UID</th></tr></thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
   </div>
   <div class="view" id="view-codes">
-    <div class="placeholder-view"><h2>Meet codes</h2><p>Coming next</p></div>
+    <div class="people-wrap">
+    <div class="people-hdr"><h2>Meeting codes</h2><button class="btn-primary" onclick="openCodeModal()">+ Add code</button></div>
+    <div class="codes-grid">
+      <div class="code-card add-card-dashed" onclick="openCodeModal()">+ Add room</div>
+    </div>
+  </div>
   </div>
 
 </div>
@@ -511,10 +737,10 @@ select, input { font-family: inherit; color: var(--text); }
   <div class="modal">
     <div class="modal-hdr">
       <h3 id="modal-title">Add session</h3>
-      <button class="modal-close" onclick="closeModal()">×</button>
+      <button class="modal-close" onclick="closeSessionModal()">×</button>
     </div>
     <div class="modal-body">
-      <input type="hidden" id="edit-roster-id">
+      <input type="hidden" id="clone-roster-id">
       <div class="form-group">
         <label>Meeting code</label>
         <select id="modal-code">
@@ -532,15 +758,27 @@ select, input { font-family: inherit; color: var(--text); }
         </div>
       </div>
       <div class="form-group">
-        <label>Repeat on</label>
-        <div class="day-picker">
-          <button class="day-btn" data-day="1" onclick="toggleDay(this)">Mo</button>
-          <button class="day-btn" data-day="2" onclick="toggleDay(this)">Tu</button>
-          <button class="day-btn" data-day="3" onclick="toggleDay(this)">We</button>
-          <button class="day-btn" data-day="4" onclick="toggleDay(this)">Th</button>
-          <button class="day-btn" data-day="5" onclick="toggleDay(this)">Fr</button>
-          <button class="day-btn" data-day="6" onclick="toggleDay(this)">Sa</button>
-          <button class="day-btn" data-day="0" onclick="toggleDay(this)">Su</button>
+        <label>Day of Week</label>
+        <select id="modal-day-select">
+          <option value="1">Monday</option>
+          <option value="2">Tuesday</option>
+          <option value="3">Wednesday</option>
+          <option value="4">Thursday</option>
+          <option value="5">Friday</option>
+          <option value="6">Saturday</option>
+          <option value="0">Sunday</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Add Students to this Session</label>
+        <div class="multi-select-container">
+          <input type="text" id="modal-stu-search" placeholder="Type to find students..." oninput="filterStudentList()">
+          <div id="stu-dropdown" class="stu-dropdown-list" style="display:none;">
+            <!-- Populated dynamically: <div onclick="toggleStu(id)">Name</div> -->
+          </div>
+        </div>
+        <div id="selected-students-tags" class="tag-list" style="margin-top: 10px;">
+          <!-- Selected student chips appear here -->
         </div>
       </div>
       <div class="form-group">
@@ -553,9 +791,78 @@ select, input { font-family: inherit; color: var(--text); }
         </div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" id="btn-save-session" onclick="saveSession()">Save session</button>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeSessionModal()">Cancel</button>
+      <button class="btn-primary" id="btn-save-session" onclick="saveSession()">Save session</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADD / EDIT SESSION STUDENT ── -->
+
+<div id="student-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <h3 id="stu-modal-title">Add New Student</h3>
+    <input type="hidden" id="edit-stu-id">
+    <div class="form-group">
+      <label>Full Name</label>
+      <input type="text" id="stu-name" placeholder="e.g. Aryan Kumar">
+    </div>
+    <div class="form-group row">
+      <div>
+        <label>Level (1-8)</label>
+        <input type="number" id="stu-level" min="1" max="8" value="1">
+      </div>
+      <div>
+        <label>Tier</label>
+        <select id="stu-tier">
+          <option value="junior">Junior</option>
+          <option value="senior">Senior</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Primary Teacher</label>
+      <select id="stu-teacher-select">
+        <!-- populated by JS -->
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Display Names (comma separated)</label>
+      <input type="text" id="stu-display-names" placeholder="e.g. Mother Name, Father Name on meetings">
+    </div>
+    <div class="form-group">
+      <label>Parent Emails (comma separated)</label>
+      <input type="email" id="stu-parent-emails" placeholder="mom@email.com, dad@email.com">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeStudentModal()">Cancel</button>
+      <button class="btn-secondary" id="btn-save-another" onclick="saveStudent(true)">Save & Add Another</button>
+      <button class="btn-primary" onclick="saveStudent(false)">Save & Close</button>    
+    </div>
+  </div>
+</div>
+
+<!-- ── UPDATED MEETING MEET CODE MODAL ── -->
+<div id="code-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <h3 id="code-modal-title">Meeting Code</h3>
+    <input type="hidden" id="edit-code-id">
+    <div class="form-group">
+      <label>Label / Room Name</label>
+      <input type="text" id="code-label" placeholder="e.g. Room A">
+    </div>
+    <div class="form-group">
+      <label>Meeting Code/URL</label>
+      <input type="text" id="code-value" placeholder="meet.google.com/xxx-yyyy-zzz">
+    </div>
+    <div class="form-group">
+      <label>Default Teacher</label>
+      <select id="code-default-teacher"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeCodeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveMeetingCode()">Save Code</button>
     </div>
   </div>
 </div>
@@ -600,6 +907,7 @@ let allMeetCodes  = {};          // id → code doc
 let allTeachers   = [];          // [{id, name, email, alias}]
 let currentTeacher = null;       // teacher doc
 let currentSessions = [];        // roster docs for selected teacher
+let sessionGroups = {};          // meet_day_time → [data, studentIds, docIds]
 let rosterUnsubscribe = null;    // firestore listener
 let activeFilters = new Set();   // 'junior' | 'senior' | 'free'
 let draggingStudentId = null;
@@ -631,6 +939,7 @@ auth.onAuthStateChanged(async user => {
   document.getElementById('user-name').textContent = user.displayName || user.email;
   const initials = (user.displayName||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('user-avatar').textContent = initials;
+  loadAllData();
   showApp();
   await Promise.all([loadStudents(), loadTeachers(), loadMeetCodes()]);
 });
@@ -738,6 +1047,9 @@ function toggleFilter(key) {
   renderStudentList(document.getElementById('stu-search').value);
 }
 
+const getVirtualId = (s) => `${s.meeting_code}_${s.weekday}_${s.session_time}`;
+
+
 // ─────────────────────────────────────────────
 // TEACHER SELECT + ROSTER LOAD
 // ─────────────────────────────────────────────
@@ -746,6 +1058,7 @@ function onTeacherChange() {
   document.getElementById('btn-add-session').disabled = !teacherId;
   if (rosterUnsubscribe) { rosterUnsubscribe(); rosterUnsubscribe = null; }
   currentSessions = [];
+  sessionGroups = {};
 
   if (!teacherId) {
     currentTeacher = null;
@@ -757,12 +1070,33 @@ function onTeacherChange() {
   currentTeacher = allTeachers.find(t => t.id === teacherId);
   showSessionsLoading();
 
+
   rosterUnsubscribe = db.collection('teacher').doc(teacherId).collection('roster')
     .where('status','!=','deleted')
     .onSnapshot(snap => {
       currentSessions = [];
       snap.forEach(doc => currentSessions.push({ id: doc.id, ...doc.data() }));
-      currentSessions.sort((a,b) => (a.sessionTime||'').localeCompare(b.sessionTime||''));
+      currentSessions.sort((a,b) => (a.session_time||'').localeCompare(b.session_time||''));
+
+      sessionGroups = {};
+      studentCounter = 0;
+
+      currentSessions.forEach(record => {
+        const vId = getVirtualId(record);
+        if (!sessionGroups[vId]) {
+          sessionGroups[vId] = {
+            ...record, // Take base data from the first record
+            virtualId: vId,
+            studentIds: [], // We will collect all student IDs here
+            docIds: {} // Keep track of original doc IDs for deletion
+          };
+          console.warn('New session group:', vId, sessionGroups[vId].record);
+        }
+        sessionGroups[vId].studentIds.push(record.student_id);
+        sessionGroups[vId].docIds[record.student_id] = record.id;
+        studentCounter++;
+      });
+      console.log('##Session Count:', sessionGroups.length, ", ## total students in sessions:", studentCounter +" teacher "+teacherId);
       renderSessionsView();
       renderGridView();
     }, err => {
@@ -771,7 +1105,7 @@ function onTeacherChange() {
         .onSnapshot(snap => {
           currentSessions = [];
           snap.forEach(doc => currentSessions.push({ id: doc.id, ...doc.data() }));
-          currentSessions.sort((a,b) => (a.sessionTime||'').localeCompare(b.sessionTime||''));
+          currentSessions.sort((a,b) => (a.session_time||'').localeCompare(b.session_time||''));
           renderSessionsView();
           renderGridView();
         });
@@ -796,15 +1130,17 @@ function renderSessionsView() {
     return;
   }
 
-  container.innerHTML = currentSessions.map((s, idx) => {
+  const groupsArray = Object.values(sessionGroups);
+
+  container.innerHTML = groupsArray.map((s, idx) => {
     const color  = sessionColor(idx);
     const cchip  = chipColor(idx);
-    const code   = allMeetCodes[s.meetingCodeId];
-    const codeStr = code ? code.code : (s.meetingCodeId || '—');
+    const code   = allMeetCodes[s.meeting_code];
+    const codeStr = code ? code.code : (s.meeting_code || '—');
     const codeLabel = code ? (code.label || code.code) : codeStr;
-    const days   = (s.weekdays||[]).map(d => DAY_FULL[d]).join(' + ') || '—';
-    const time   = formatTime(s.sessionTime);
-    const dur    = s.durationMins ? `${s.durationMins} min` : '';
+    const day   = DAY_FULL[s.weekday] || '—';
+    const time   = formatTime(s.session_time);
+    const dur    = s.duration_mins ? `${s.duration_mins} min` : '';
     const studentIds = s.studentIds || [];
     const label  = s.label ? `<span style="font-size:11px;color:var(--hint);font-weight:400">${s.label}</span>` : '';
     const isGroup = studentIds.length > 1;
@@ -817,19 +1153,19 @@ function renderSessionsView() {
       return `<span class="stu-chip ${cchip}">
         <span class="chip-lvl ${tier}">${lvl}</span>
         <span class="chip-name">${stu.name||sid}</span>
-        <span class="chip-rm" onclick="removeStudentFromSession('${s.id}','${sid}',event)" title="Remove">×</span>
+        <span class="chip-rm" onclick="removeStudentFromSession('${s.virtualId}','${sid}',event)" title="Remove">×</span>
       </span>`;
     }).join('');
 
-    return `<div class="session-card" id="sc-${s.id}"
-      ondragover="onDragOverSession(event,'${s.id}')"
-      ondrop="onDropSession(event,'${s.id}')"
-      ondragleave="onDragLeaveSession('${s.id}')">
+    return `<div class="session-card" id="sc-${s.virtualId}"
+      ondragover="onDragOverSession(event,'${s.virtualId}')"
+      ondrop="onDropSession(event,'${s.virtualId}')"
+      ondragleave="onDragLeaveSession('${s.virtualId}')">
       <div class="sc-hdr">
         <div class="sc-accent" style="background:${color.text}"></div>
         <div class="sc-info">
           <div class="sc-title">
-            <span class="days">${days}</span>
+            <span class="days">${day}</span>
             <span class="time">· ${time}${dur ? ' · '+dur : ''}</span>
             ${isGroup ? '<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:var(--amber-bg);color:var(--amber-text);border:1px solid var(--amber-bdr)">group</span>' : ''}
             ${label}
@@ -839,13 +1175,13 @@ function renderSessionsView() {
         <div class="sc-right">
           <span class="code-pill" title="Meet code">${codeStr}</span>
           <span class="stu-count">${studentIds.length} student${studentIds.length!==1?'s':''}</span>
-          <button class="sc-btn" onclick="openEditSession('${s.id}')" title="Edit">✎</button>
-          <button class="sc-btn" onclick="deleteSession('${s.id}')" title="Delete" style="color:var(--danger)">✕</button>
+          <button class="sc-btn" onclick="cloneSession('${s.virtualId}')" title="Clone Session">❐</button>
+          <button class="sc-btn" onclick="deleteSession('${s.virtualId}')" title="Delete" style="color:var(--danger)">✕</button>
         </div>
       </div>
-      <div class="sc-body" id="scb-${s.id}">
+      <div class="sc-body" id="scb-${s.virtualId}">
         ${chips}
-        <div class="drop-zone" id="dz-${s.id}">Drop student here to assign</div>
+        <div class="drop-zone" id="dz-${s.virtualId}">Drop student here to assign</div>
       </div>
     </div>`;
   }).join('');
@@ -858,9 +1194,9 @@ function renderGridView() {
   const container = document.getElementById('grid-view');
   if (!currentSessions.length) { container.innerHTML = ''; return; }
 
-  // build time slots from sessions
-  const times = [...new Set(currentSessions.map(s => s.sessionTime||'09:00'))].sort();
-  const activeDays = [...new Set(currentSessions.flatMap(s => s.weekdays||[]))].sort();
+  // build time slots from sessions - weekday is now a single int per doc
+  const times = [...new Set(currentSessions.map(s => s.session_time||'09:00'))].sort();
+  const activeDays = [...new Set(currentSessions.map(s => s.weekday))].filter(d => d !== undefined).sort();
   if (!activeDays.length) { container.innerHTML = ''; return; }
 
   const cols = activeDays.length;
@@ -870,28 +1206,30 @@ function renderGridView() {
   html += `<div class="wg-hdr"></div>`;
   activeDays.forEach(d => { html += `<div class="wg-hdr">${DAY_FULL[d]}</div>`; });
 
-  // time rows
+  // time rows - use sessionGroups so each unique slot shows once
+  const groupsArray = Object.values(sessionGroups);
   times.forEach(t => {
     html += `<div class="wg-time">${formatTime(t)}</div>`;
     activeDays.forEach(day => {
-      const session = currentSessions.find(s => (s.weekdays||[]).includes(day) && s.sessionTime === t);
-      if (!session) {
+      // find the session group for this day+time
+      const group = groupsArray.find(g => g.weekday === day && g.session_time === t);
+      if (!group) {
         html += `<div class="wg-cell" ondragover="govGrid(event,this)" ondrop="gdropGrid(event,this,'${t}',${day})" ondragleave="this.classList.remove('over')">
           <div class="wg-empty-hint">Drop here</div></div>`;
         return;
       }
-      const idx   = currentSessions.indexOf(session);
+      const idx   = groupsArray.indexOf(group);
       const color = sessionColor(idx);
-      const code  = allMeetCodes[session.meetingCodeId];
-      const codeShort = code ? (code.label || code.code.split('-')[0]+'…') : '—';
-      const sids  = session.studentIds || [];
+      const code  = allMeetCodes[group.meeting_code];
+      const codeShort = code ? (code.label || group.meeting_code.split('-')[0]+'…') : (group.meeting_code||'—');
+      const sids  = group.studentIds || [];
       const stuChips = sids.slice(0,4).map(sid => {
         const stu = allStudents[sid];
         return `<span class="wb-stu" style="background:${color.chip};color:${color.text}">${stu?(stu.name||'').split(' ')[0]:'?'}</span>`;
       }).join('') + (sids.length>4 ? `<span class="wb-stu" style="background:${color.chip};color:${color.text}">+${sids.length-4}</span>` : '');
 
       html += `<div class="wg-cell has-session">
-        <div class="wg-block" style="background:${color.bg};color:${color.text}" onclick="switchRosterView('sessions');scrollToSession('${session.id}')">
+        <div class="wg-block" style="background:${color.bg};color:${color.text}" onclick="switchRosterView('sessions');scrollToSession('${group.virtualId}')">
           <div class="wb-code">${codeShort}</div>
           <div class="wb-stus">${stuChips || '<span style="font-size:10px;opacity:.6">empty</span>'}</div>
         </div>
@@ -922,21 +1260,21 @@ function onDragEnd(ev) {
   ev.currentTarget.classList.remove('dragging');
 }
 
-function onDragOverSession(ev, sessionId) {
+function onDragOverSession(ev, virtualId) {
   ev.preventDefault();
   ev.dataTransfer.dropEffect = 'copy';
-  document.getElementById('sc-'+sessionId)?.classList.add('drop-active');
-  document.getElementById('dz-'+sessionId)?.classList.add('over');
+  document.getElementById('sc-'+virtualId)?.classList.add('drop-active');
+  document.getElementById('dz-'+virtualId)?.classList.add('over');
 }
-function onDragLeaveSession(sessionId) {
-  document.getElementById('sc-'+sessionId)?.classList.remove('drop-active');
-  document.getElementById('dz-'+sessionId)?.classList.remove('over');
+function onDragLeaveSession(virtualId) {
+  document.getElementById('sc-'+virtualId)?.classList.remove('drop-active');
+  document.getElementById('dz-'+virtualId)?.classList.remove('over');
 }
-async function onDropSession(ev, sessionId) {
+async function onDropSession(ev, virtualId) {
   ev.preventDefault();
-  onDragLeaveSession(sessionId);
+  onDragLeaveSession(virtualId);
   if (!draggingStudentId) return;
-  await addStudentToSession(sessionId, draggingStudentId);
+  await addStudentToSession(virtualId, draggingStudentId);
   draggingStudentId = null;
 }
 
@@ -944,85 +1282,186 @@ function govGrid(ev, el) { ev.preventDefault(); el.classList.add('over'); }
 async function gdropGrid(ev, el, time, day) {
   ev.preventDefault(); el.classList.remove('over');
   if (!draggingStudentId) return;
-  // find or prompt which session at that slot
-  const session = currentSessions.find(s => (s.weekdays||[]).includes(day) && s.sessionTime === time);
-  if (session) { await addStudentToSession(session.id, draggingStudentId); }
+  // find the session group for this day+time slot
+  const group = Object.values(sessionGroups).find(g => g.weekday === day && g.session_time === time);
+  if (group) {
+    await addStudentToSession(group.virtualId, draggingStudentId);
+  } else {
+    showToast('No session at this slot — create one with + Session first');
+  }
   draggingStudentId = null;
 }
 
 // ─────────────────────────────────────────────
 // FIRESTORE WRITES
 // ─────────────────────────────────────────────
-async function addStudentToSession(sessionId, studentId) {
-  const session = currentSessions.find(s => s.id === sessionId);
-  if (!session) return;
-  const existing = session.studentIds || [];
-  if (existing.includes(studentId)) { showToast('Already in this session'); return; }
+async function addStudentToSession(virtualId, studentId) {
+  
+  // 1. Find the group of records matching this virtual ID
+  const sessionGroup = sessionGroups[virtualId];
+  if (!sessionGroup) {
+    showToast('Session group not found' + virtualId);
+    return;
+  }
 
+  // 2. Check if this specific student is already in this virtual session
+  if (sessionGroup.studentIds.includes(studentId)) {
+    showToast('Student is already in this session');
+    return;
+  }
+
+  // 3. Perform Student-level Conflict Check
+  // Prevent adding if student is already in another room at the exact same time
+  const isConflict = currentSessions.find(s => 
+    s.student_id === studentId && 
+    s.weekday === sessionGroup.weekday && 
+    s.session_time === sessionGroup.session_time
+  );
+
+  if (isConflict) {
+    showToast(`Conflict: Student ${allStudents[studentId]?.name || studentId} already has a session at this time`);
+    return;
+  }  
+  
   const stu = allStudents[studentId];
   const name = stu?.name || studentId;
 
   try {
-    await db.collection('teacher').doc(currentTeacher.id)
-      .collection('roster').doc(sessionId)
-      .update({ studentIds: firebase.firestore.FieldValue.arrayUnion(studentId) });
-    showToast(`${name} added`);
-  } catch(e) { showToast('Error: '+e.message); }
+    const rosterRef = db.collection('teacher').doc(currentTeacher.id).collection('roster');
+    
+    // 4. Create a NEW document for this specific student in this slot
+    const docRef = await rosterRef.add({
+      student_id: studentId,
+      meeting_code: sessionGroup.meeting_code,
+      session_time: sessionGroup.session_time,
+      duration_mins: sessionGroup.duration_mins || 60,
+      weekday: sessionGroup.weekday, 
+      label: sessionGroup.label || null,
+      displayNames: stu?.displayNames || [],
+      timezone: 'Asia/Kolkata',
+      status: 'active',
+      crt_at: firebase.firestore.FieldValue.serverTimestamp(),
+      upd_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    showToast(`${name} added to session`);
+    sessionGroups[virtualId].studentIds.push(studentId);
+    sessionGroups[virtualId].docIds[studentId] = docRef.id;
+    // UI will auto-refresh if you have a snapshot listener on 'roster'
+  } catch(e) {
+    console.error("Drag-Drop Error:", e);
+    showToast('Error: ' + e.message);
+  }
 }
 
-async function removeStudentFromSession(sessionId, studentId, ev) {
+async function removeStudentFromSession(virtualId, studentId, ev) {
   ev.stopPropagation();
   const stu = allStudents[studentId];
+
+  // 1. Find the group of records matching this virtual ID
+  const sessionGroup = sessionGroups[virtualId];
+  if (!sessionGroup) {
+    showToast('Session group not found: ' + virtualId);
+    return;
+  } 
+
+  const docId = sessionGroup.docIds[studentId]; 
   const name = stu?.name || studentId;
+  if (!docId) {
+    showToast(`Student ${name} not found in this session`);
+    return;
+  }
+  
   if (!confirm(`Remove ${name} from this session?`)) return;
   try {
     await db.collection('teacher').doc(currentTeacher.id)
-      .collection('roster').doc(sessionId)
-      .update({ studentIds: firebase.firestore.FieldValue.arrayRemove(studentId) });
+      .collection('roster').doc(docId)
+      .delete();
+    
+    delete sessionGroup.docIds[studentId]; // Update local state immediately for snappier UI
+    sessionGroup.studentIds = sessionGroup.studentIds.filter(id => id !== studentId);
     showToast(`${name} removed`);
   } catch(e) { showToast('Error: '+e.message); }
 }
 
-async function deleteSession(sessionId) {
-  const s = currentSessions.find(x => x.id === sessionId);
-  const days = (s?.weekdays||[]).map(d=>DAY_FULL[d]).join('+');
-  if (!confirm(`Delete session (${days} ${formatTime(s?.sessionTime)})? Students will be unassigned.`)) return;
+async function deleteSession(virtualId) {
+
+  if (!confirm("Delete this session for all students?")) return;
+  // 1. Get the group from your sessionGroups object
+  const sessionGroup = sessionGroups[virtualId]; 
+  if (!sessionGroup) {
+    showToast("Session group not found: " + virtualId);
+    return;
+  }
+
+  // 2. Delete each document in the group
+  const batch = db.batch();
+  const rosterRef = db.collection('teacher').doc(currentTeacher.id).collection('roster');
+
+  // 2. Extract the Firestore document IDs from the docIds object
+  const firestoreDocIds = Object.values(sessionGroup.docIds);
+
+  // Add every document in this session to the batch delete[cite: 1]
+  firestoreDocIds.forEach(docId => {
+    batch.delete(rosterRef.doc(docId)); 
+  });
+
   try {
-    await db.collection('teacher').doc(currentTeacher.id)
-      .collection('roster').doc(sessionId)
-      .update({ status: 'deleted' });
-    showToast('Session deleted');
-  } catch(e) { showToast('Error: '+e.message); }
+    await batch.commit();
+    delete sessionGroups[virtualId]; // Remove from local state immediately for snappier UI update
+    showToast(`Session ${virtualId} deleted (${firestoreDocIds.length} records removed)`);
+    renderSessionsView(); // Re-render to reflect changes
+  } catch (e) {
+    showToast("Error deleting: " + e.message);
+  }
 }
 
 // ─────────────────────────────────────────────
 // ADD / EDIT SESSION MODAL
 // ─────────────────────────────────────────────
 function openAddSession() {
+  selectedStudentIds = [];
   document.getElementById('modal-title').textContent = 'Add session';
-  document.getElementById('edit-roster-id').value = '';
-  document.getElementById('modal-time').value = '09:00';
+  document.getElementById('clone-roster-id').value = '';
+  document.getElementById('modal-time').value = '17:00';
   document.getElementById('modal-duration').value = '60';
   document.getElementById('modal-label').value = '';
-  document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected'));
-  populateCodeSelect();
+  document.getElementById('modal-stu-search').value = '';
+  document.getElementById('stu-dropdown').style.display = 'none';
+  document.getElementById('selected-students-tags').innerHTML = '';
   document.getElementById('conflict-warning').style.display = 'none';
+  populateCodeSelect();
   document.getElementById('session-modal').classList.add('open');
 }
 
-function openEditSession(sessionId) {
-  const s = currentSessions.find(x => x.id === sessionId);
-  if (!s) return;
-  document.getElementById('modal-title').textContent = 'Edit session';
-  document.getElementById('edit-roster-id').value = sessionId;
-  document.getElementById('modal-time').value = s.sessionTime || '09:00';
-  document.getElementById('modal-duration').value = s.durationMins || 60;
-  document.getElementById('modal-label').value = s.label || '';
-  document.querySelectorAll('.day-btn').forEach(b => {
-    b.classList.toggle('selected', (s.weekdays||[]).includes(parseInt(b.dataset.day)));
-  });
-  populateCodeSelect(s.meetingCodeId);
+function cloneSession(virtualId) {
+  selectedStudentIds = [];
   document.getElementById('conflict-warning').style.display = 'none';
+
+  const sessionGroup = currentSessions.filter(s => getVirtualId(s) === virtualId);
+  if (sessionGroup.length === 0) { showToast('Session not found'); return; }
+
+  const template = sessionGroup[0];
+
+  document.getElementById('modal-title').textContent = 'Clone session';
+  document.getElementById('clone-roster-id').value = virtualId;
+
+  // populate code dropdown first, then set selected value
+  populateCodeSelect(template.meeting_code);
+  
+  document.getElementById('modal-time').value = template.session_time || '09:00';
+  document.getElementById('modal-duration').value = template.duration_mins || 60;
+  document.getElementById('modal-day-select').value = template.weekday;
+  document.getElementById('modal-label').value = template.label || '';
+
+  // pre-fill students from the entire group
+  selectedStudentIds = sessionGroup.map(s => s.student_id).filter(Boolean);
+  renderStudentTags();
+
+  // clear search box
+  document.getElementById('modal-stu-search').value = '';
+  document.getElementById('stu-dropdown').style.display = 'none';
+
   document.getElementById('session-modal').classList.add('open');
 }
 
@@ -1040,64 +1479,125 @@ function populateCodeSelect(selectedId) {
 
 function toggleDay(btn) { btn.classList.toggle('selected'); }
 
-function closeModal() {
+function closeSessionModal() {
   document.getElementById('session-modal').classList.remove('open');
 }
 
+
 async function saveSession() {
-  const btn   = document.getElementById('btn-save-session');
-  const id    = document.getElementById('edit-roster-id').value;
-  const codeId= document.getElementById('modal-code').value;
-  const time  = document.getElementById('modal-time').value;
-  const dur   = parseInt(document.getElementById('modal-duration').value) || 60;
+
+  const isClone = !!document.getElementById('clone-roster-id').value;
+  
+  const btn = document.getElementById('btn-save-session');
+  const codeId = document.getElementById('modal-code').value;
+  const time = document.getElementById('modal-time').value;
+  const dur = parseInt(document.getElementById('modal-duration').value) || 60;
   const label = document.getElementById('modal-label').value.trim();
-  const days  = [...document.querySelectorAll('.day-btn.selected')].map(b => parseInt(b.dataset.day));
-
+  
+  // 1. Get the single selected day from the dropdown
+  const selectedDay = parseInt(document.getElementById('modal-day-select').value);
+  
+  // 2. Validation Checks
   if (!codeId) { alert('Please select a meeting code'); return; }
-  if (!days.length) { alert('Please select at least one day'); return; }
+  
+  // New: Ensure at least one student is selected from our global state
+  if (!selectedStudentIds || selectedStudentIds.length === 0) { 
+    alert('Select some students for this session'); 
+    return; 
+  }
 
-  // conflict check: same code, overlapping time, different session
-  const conflict = currentSessions.find(s =>
-    s.id !== id && s.meetingCodeId === codeId &&
-    s.sessionTime === time &&
-    (s.weekdays||[]).some(d => days.includes(d))
+  if (isClone) {
+    const originalVirtualId = document.getElementById('clone-roster-id').value;
+    const original = sessionGroups[originalVirtualId];
+    
+    // Check if they are trying to save the clone with the exact same constraints
+    if (original && 
+        original.meeting_code === codeId && 
+        original.session_time === time && 
+        original.weekday === selectedDay) {
+          console.warn('Duplicate session detected:', { original, attempted: { codeId, time, selectedDay } });
+      alert("This is an exact duplicate of the original session. Please change the Day/Time/Meeting before saving.");
+      return;
+    }
+  }
+
+  // 3. Conflict Check (Refined for single day)
+  const conflict = currentSessions.find(s => 
+    s.meeting_code === codeId &&
+    s.session_time === time &&
+    s.weekday === selectedDay // Check if this day is in that session
   );
-  if (conflict) {
+
+  const conflicts = [];
+  
+  selectedStudentIds.forEach(stuId => {
+    // Check if THIS specific student is already booked at THIS time/day
+    const isBooked = currentSessions.find(s => 
+      s.student_id === stuId && 
+      s.weekday === selectedDay && 
+      s.session_time === time
+    );
+    
+    if (isBooked) {
+      const studentName = allStudents[stuId]?.name || stuId;
+      conflicts.push(studentName);
+    }
+  });
+
+  
+
+  if (conflict || conflicts.length > 0) {
+    if (conflict) {
+      showToast('Conflict: Another session already exists at this time');
+    } else {
+      console.log('Conflicting students:', conflicts );
+      showToast(`Conflict: ${conflicts.length} selected student(s) already have a session at this time`);
+    }
     document.getElementById('conflict-warning').style.display = 'block';
-    // also check across other teachers (basic — full cross-teacher check needs a query)
     return;
   }
   document.getElementById('conflict-warning').style.display = 'none';
 
-  btn.disabled = true; btn.textContent = 'Saving…';
-  const data = {
-    meetingCodeId: codeId,
-    sessionTime:   time,
-    durationMins:  dur,
-    weekdays:      days,
-    label:         label || null,
-    timezone:      'Asia/Kolkata',
-    status:        'active',
-  };
+  btn.disabled = true; 
+  btn.textContent = 'Saving…';
+
+  const batch = db.batch();
+  const rosterRef = db.collection('teacher').doc(currentTeacher.id).collection('roster');
 
   try {
-    const ref = db.collection('teacher').doc(currentTeacher.id).collection('roster');
-    if (id) {
-      await ref.doc(id).update(data);
-      showToast('Session updated');
-    } else {
-      data.studentIds = [];
-      data.createdAt  = firebase.firestore.FieldValue.serverTimestamp();
-      await ref.add(data);
-      showToast('Session created');
-    }
-    closeModal();
-  } catch(e) {
-    showToast('Error: '+e.message);
+    // NEW SESSION / CLONE (only)
+    // We create a separate document for every single student selected
+    
+    selectedStudentIds.forEach(studentId => {
+      const stu = allStudents[studentId];
+      const newDocRef = rosterRef.doc(); // Generate a fresh ID for each student doc
+      batch.set(newDocRef, {
+        student_id: studentId, // Crucial: One student per doc
+        meeting_code: codeId,
+        session_time: time,
+        duration_mins: dur,
+        weekday: selectedDay, 
+        displayNames: stu?.displayNames || [],
+        label: label || null,
+        timezone: 'Asia/Kolkata',
+        status: 'active',
+        crt_at: firebase.firestore.FieldValue.serverTimestamp(),
+        upd_at: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    await batch.commit();
+    showToast(`${selectedStudentIds.length} student sessions created`);
+    closeSessionModal();
+  } catch (e) {
+    console.error("Batch Save Error:", e);
+    showToast('Error: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = 'Save session';
+    btn.disabled = false; 
+    btn.textContent = 'Save session';
   }
 }
+
 
 // ─────────────────────────────────────────────
 // VIEW SWITCHING
@@ -1105,8 +1605,13 @@ async function saveSession() {
 function showView(name, el) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('view-'+name).classList.add('active');
-  el.classList.add('active');
+  const targetView = document.getElementById('view-' + name);
+  if (targetView) targetView.classList.add('active');
+  if (el) el.classList.add('active');
+
+  if (name === 'students') renderStudentsView();
+  if (name === 'teachers') renderTeachersView();
+  if (name === 'codes')    renderCodesView();
 }
 
 function switchRosterView(v) {
@@ -1145,6 +1650,337 @@ function showToast(msg) {
 document.getElementById('session-modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
+
+function renderStudentsView() {
+  const container = document.querySelector('#view-students tbody');
+  const students = Object.values(allStudents);
+
+  container.innerHTML = students.map(s => {
+    // Find teacher alias using primaryTeacherId
+    const teacher = allTeachers.find(t => t.id === s.primaryTeacherId);
+    const teacherName = teacher ? (teacher.alias || teacher.name) : 'Unassigned';
+    
+    const regDate = s.dateOfReg ? formatDate(s.dateOfReg) : '—';
+    const displayTags = (s.displayNames || []).map(name => `<span class="tag">${name}</span>`).join('');
+    const emailTags = (s.parentEmails || []).map(email => `<span class="tag" style="border-color:var(--blue-bdr)">${email}</span>`).join('');
+
+
+    return `
+      <tr>
+        <td><strong>${s.name || 'Unnamed'}</strong></td>
+        <td><span class="badge badge-l">Lvl ${s.level || '?'}</span></td>
+        <td><span class="badge badge-${s.tier === 'senior' ? 's' : 'j'}">${s.tier || '—'}</span></td>
+        <td>${teacherName}</td>
+        <td>
+          <div class="tag-list">${displayTags}</div>
+          <div class="tag-list" style="margin-top:4px">${emailTags}</div>
+        </td>
+        <td style="color:var(--color-text-secondary)">${regDate}</td>
+        <td>
+          <button class="btn-primary" style="padding:2px 8px; font-size:11px" onclick="openAddStudentModal('${s.id}')">✎</button>
+          <button class="btn-primary" style="padding:2px 8px; font-size:11px; color:var(--danger)" onclick="deleteStudent('${s.id}')">✕</button>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function renderTeachersView() {
+  const container = document.querySelector('#view-teachers tbody');
+  
+  container.innerHTML = allTeachers.map(t => {
+    // Count students assigned to this teacher[cite: 1]
+    const studentCount = Object.values(allStudents).filter(s => s.primaryTeacherId === t.id).length;
+
+    return `
+      <tr>
+        <td><strong>${t.name}</strong></td>
+        <td style="color:var(--color-text-secondary)">${t.alias || '—'}</td>
+        <td style="color:var(--color-text-secondary)">${t.email || '—'}</td>
+        <td><span class="badge badge-j">${studentCount} active</span></td>
+        <td style="font-family:var(--font-mono);font-size:11px;color:var(--color-text-tertiary)">${t.id}</td>
+      </tr>`;
+  }).join('');
+}
+
+function renderCodesView() {
+  const grid = document.querySelector('#view-codes .codes-grid');
+  const codes = Object.values(allMeetCodes);
+
+  let html = codes.map(c => {
+    // Simple check: is this code used in any session we have loaded?
+    const isUsed = currentSessions.some(s => s.meeting_code === c.code);
+    const statusClass = isUsed ? 'dot-busy' : 'dot-free';
+    const statusText = isUsed ? 'In use' : 'Available';
+    
+    // Look up the default teacher's alias or name
+    const teacher = allTeachers.find(t => t.id === c.defaultTeacher);
+    const teacherDisplay = teacher ? (teacher.alias || teacher.name) : '-';
+
+    return `
+      <div class="code-card" onclick="openCodeModal('${c.id}')" title="Click to edit">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div class="label">${c.label || 'No Label'}</div>
+          <button class="btn-icon-edit" style="background:none; border:none; cursor:pointer; color:var(--color-text-tertiary); font-size:12px;">✎</button>
+        </div>
+        <div class="code">${c.code}</div>
+        <div class="teacher-info" style="font-size:11px; color:var(--color-text-secondary); margin-top:8px;">
+          <strong>Default:</strong> ${teacherDisplay}
+        </div>
+        <div class="usage">
+          <span class="status-dot ${statusClass}"></span>${statusText}
+        </div>
+      </div>`;
+  }).join('');
+  // Add the "+ Add room" placeholder back
+  html += `<div class="code-card add-card-dashed" onclick="openCodeModal()">+ Add room</div>`;
+  
+  grid.innerHTML = html;
+}
+
+async function loadAllData() {
+  console.log("Fetching all collections...");
+  // Run all your fetch functions in parallel
+  await Promise.all([
+    loadTeachers(),
+    loadStudents(),
+    loadMeetCodes()
+  ]);
+  
+  // Now that data is in memory, populate the UI[cite: 1, 2]
+  renderStudentsView();
+  renderTeachersView();
+  renderCodesView();
+  //renderRosterSidebar(); 
+}
+
+//----ADD STUDENT -----------------------------
+
+function openAddStudentModal(stuId = null) {
+  // Populate the teacher dropdown first
+  const select = document.getElementById('stu-teacher-select');
+  select.innerHTML = allTeachers.map(t => 
+    `<option value="${t.id}">${t.alias || t.name}</option>`
+  ).join('');
+  const s = allStudents[stuId];
+  if (s) {
+    document.getElementById('stu-modal-title').textContent = "Edit Student";
+    document.getElementById('edit-stu-id').value = stuId;
+    document.getElementById('stu-name').value = s.name || '';
+    document.getElementById('stu-level').value = s.level || 1;
+    document.getElementById('stu-tier').value = s.tier || 'junior';
+    document.getElementById('stu-display-names').value = (s.displayNames || []).join(', ');
+    document.getElementById('stu-teacher-select').value = s.primaryTeacherId || '';
+    document.getElementById('stu-parent-emails').value = (s.parentEmails || []).join(', ');
+  } else {
+    // Reset for Add New
+    document.getElementById('stu-modal-title').textContent = "Add New Student";
+    document.getElementById('edit-stu-id').value = "";
+    document.getElementById('stu-name').value = "";
+    document.getElementById('stu-display-names').value = "";
+    document.getElementById('stu-parent-emails').value = "";
+  }
+  
+  document.getElementById('student-modal').style.display = 'flex';
+}
+
+function closeStudentModal() {
+  document.getElementById('student-modal').style.display = 'none';
+}
+
+async function saveStudent(keepOpen = false) {
+  // Helper to turn comma-string into clean array
+  const stuId = document.getElementById('edit-stu-id').value;
+  const stringToArray = (str) => str ? str.split(',').map(item => item.trim()).filter(item => item !== "") : [];
+  const studentData = {
+    name: document.getElementById('stu-name').value,
+    level: parseInt(document.getElementById('stu-level').value),
+    tier: document.getElementById('stu-tier').value,
+    primaryTeacherId: document.getElementById('stu-teacher-select').value,
+    status: 'active',
+    displayNames: stringToArray(document.getElementById('stu-display-names').value),
+    parentEmails: stringToArray(document.getElementById('stu-parent-emails').value),
+    upd_at: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (!studentData.name) return alert("Please enter a name");
+
+  try {
+
+    if (stuId) {
+      await db.collection('students').doc(stuId).update(studentData);
+      showToast("Student updated");
+    } else {
+      studentData.dateOfReg = new Date().toISOString();
+      await db.collection('students').add(studentData);
+      showToast("Student added");
+    }    
+    // Reset inputs
+    document.getElementById('stu-name').value = "";
+    document.getElementById('stu-display-names').value = "";
+    document.getElementById('stu-parent-emails').value = "";
+    
+    await loadStudents(); 
+    renderStudentsView();
+
+    if (keepOpen) {
+      // Clear fields for the next entry but keep the modal visible
+      document.getElementById('stu-name').value = "";
+      document.getElementById('stu-display-names').value = "";
+      document.getElementById('stu-parent-emails').value = "";
+      document.getElementById('edit-stu-id').value = ""; // Ensure next one isn't an 'edit'
+      document.getElementById('stu-name').focus(); // Put cursor back in name field
+    } else {
+      closeStudentModal();
+    }
+  } catch (e) {
+    console.error("Error adding student: ", e);
+    alert("Error saving student: " + e.message);
+    return;
+  }
+}
+
+async function deleteStudent(stuId) {
+  if (!confirm("Mark student as inactive? They will remain in attendance logs but be hidden from active lists.")) return;
+  try {
+    await db.collection('students').doc(stuId).update({ status: 'inactive' });
+    showToast("Student marked inactive");
+    await loadStudents();
+    renderStudentsView();
+  } catch (e) { showToast("Error deleting: " + e.message); }
+}
+
+//---- SESSION CREATION & CLONING HELPERS -----------------------------
+let selectedStudentIds = []; // Global state for the modal
+
+function filterStudentList() {
+  const q = document.getElementById('modal-stu-search').value.toLowerCase();
+  const list = document.getElementById('stu-dropdown');
+
+  // allStudents is an object keyed by id — convert to array first
+  const html = Object.values(allStudents)
+    .filter(s => (s.name||'').toLowerCase().includes(q) && !selectedStudentIds.includes(s.id))
+    .sort((a,b) => (a.name||'').localeCompare(b.name||''))
+    .map(s => {
+      const tier = s.tier === 'senior' ? 'lvl-s' : 'lvl-j';
+      const tc = allTeachers.find(t => t.id === s.primaryTeacherId);
+      return `<div class="stu-item" onclick="addStudentToModalSession('${s.id}', '${s.name||''}')">
+        <span class="lvl-badge ${tier}" style="margin-right:6px">${s.level||'?'}</span>
+        ${s.name||'Unnamed'}
+        <span style="color:var(--hint);font-size:11px;margin-left:6px">${tc?.alias||tc?.name||''}</span>
+      </div>`;
+    })
+    .join('');
+
+  list.innerHTML = html || '<div class="stu-item" style="color:var(--hint);cursor:default">No students found</div>';
+  list.style.display = 'block';
+}
+
+// hide dropdown when clicking outside
+document.addEventListener('click', e => {
+  const wrap = document.querySelector('.multi-select-container');
+  if (wrap && !wrap.contains(e.target)) {
+    const dd = document.getElementById('stu-dropdown');
+    if (dd) dd.style.display = 'none';
+  }
+});
+
+function addStudentToModalSession(id, name) {
+  if (!selectedStudentIds.includes(id)) {
+    selectedStudentIds.push(id);
+    renderStudentTags();
+  }
+  document.getElementById('modal-stu-search').value = '';
+  document.getElementById('stu-dropdown').style.display = 'none';
+}
+
+function renderStudentTags() {
+  const container = document.getElementById('selected-students-tags');
+  container.innerHTML = selectedStudentIds.map(id => {
+    const s = allStudents[id];
+    const tier = s?.tier === 'senior' ? 'lvl-s' : 'lvl-j';
+    return `<span class="tag" style="display:inline-flex;align-items:center;gap:5px;margin:2px">
+      <span class="lvl-badge ${tier}">${s?.level||'?'}</span>
+      ${s ? s.name : id}
+      <span class="tag-remove" onclick="removeStudent('${id}')">×</span>
+    </span>`;
+  }).join('');
+}
+
+function removeStudent(id) {
+  selectedStudentIds = selectedStudentIds.filter(sid => sid !== id);
+  renderStudentTags();
+}
+
+
+// ─────────────────────────────────────────────
+// MEETING CODES (EDIT & DEFAULT TEACHER)
+// ─────────────────────────────────────────────
+
+function openCodeModal(codeId = null) {
+  const select = document.getElementById('code-default-teacher');
+  select.innerHTML = '<option value="">— None —</option>' + 
+    allTeachers.map(t => `<option value="${t.id}">${t.alias || t.name}</option>`).join('');
+    
+  if (codeId) {
+    const c = allMeetCodes[codeId];
+    document.getElementById('edit-code-id').value = codeId;
+    document.getElementById('code-label').value = c.label || '';
+    document.getElementById('code-value').value = c.code || '';
+    document.getElementById('code-default-teacher').value = c.defaultTeacher || '';
+    select.value = c.defaultTeacher || '';
+  } else {
+    document.getElementById('edit-code-id').value = "";
+    document.getElementById('code-label').value = "";
+    document.getElementById('code-value').value = "";
+    
+    select.value = ""; // default to no teacher
+  }
+  document.getElementById('code-modal').style.display = 'flex';
+}
+
+async function saveMeetingCode() {
+  const id = document.getElementById('edit-code-id').value;
+  const data = {
+    label: document.getElementById('code-label').value,
+    code: document.getElementById('code-value').value,
+    defaultTeacher: document.getElementById('code-default-teacher').value
+  };
+
+  try {
+    if (id) {
+      await db.collection('meetingCodes').doc(id).update(data);
+    } else {
+      await db.collection('meetingCodes').add(data);
+    }
+    document.getElementById('code-modal').style.display = 'none';
+    loadMeetCodes();
+    closeCodeModal();
+  } catch (e) { showToast("Error: " + e.message); }
+}
+
+/**
+ * Closes the Meeting Code modal and resets its internal state.
+ */
+function closeCodeModal() {
+  const modal = document.getElementById('code-modal');
+  
+  // 1. Hide the modal overlay
+  modal.style.display = 'none';
+  
+  // 2. Clear the hidden ID field to ensure the next 'Add' starts fresh
+  document.getElementById('edit-code-id').value = "";
+  
+  // 3. Clear the input fields
+  document.getElementById('code-label').value = "";
+  document.getElementById('code-value').value = "";
+  
+  // 4. Reset the teacher dropdown to default[cite: 1]
+  const teacherSelect = document.getElementById('code-default-teacher');
+  if (teacherSelect) {
+    teacherSelect.value = "";
+  }
+}
+
 </script>
 </body>
 </html>
