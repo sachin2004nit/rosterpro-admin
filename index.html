@@ -708,7 +708,7 @@ select, input { font-family: inherit; color: var(--text); }
       <div class="form-group">
         <label>Add Students to this Session</label>
         <div class="multi-select-container">
-          <input type="text" id="stu-search" placeholder="Type to find students..." oninput="filterStudentList()">
+          <input type="text" id="modal-stu-search" placeholder="Type to find students..." oninput="filterStudentList()">
           <div id="stu-dropdown" class="stu-dropdown-list" style="display:none;">
             <!-- Populated dynamically: <div onclick="toggleStu(id)">Name</div> -->
           </div>
@@ -1104,9 +1104,9 @@ function renderGridView() {
   const container = document.getElementById('grid-view');
   if (!currentSessions.length) { container.innerHTML = ''; return; }
 
-  // build time slots from sessions
+  // build time slots from sessions - weekday is now a single int per doc
   const times = [...new Set(currentSessions.map(s => s.session_time||'09:00'))].sort();
-  const activeDays = [...new Set(currentSessions.flatMap(s => s.weekday||[]))].sort();
+  const activeDays = [...new Set(currentSessions.map(s => s.weekday))].filter(d => d !== undefined).sort();
   if (!activeDays.length) { container.innerHTML = ''; return; }
 
   const cols = activeDays.length;
@@ -1116,28 +1116,30 @@ function renderGridView() {
   html += `<div class="wg-hdr"></div>`;
   activeDays.forEach(d => { html += `<div class="wg-hdr">${DAY_FULL[d]}</div>`; });
 
-  // time rows
+  // time rows - use sessionGroups so each unique slot shows once
+  const groupsArray = Object.values(sessionGroups);
   times.forEach(t => {
     html += `<div class="wg-time">${formatTime(t)}</div>`;
     activeDays.forEach(day => {
-      const session = currentSessions.find(s => (s.weekday||[]).includes(day) && s.session_time === t);
-      if (!session) {
+      // find the session group for this day+time
+      const group = groupsArray.find(g => g.weekday === day && g.session_time === t);
+      if (!group) {
         html += `<div class="wg-cell" ondragover="govGrid(event,this)" ondrop="gdropGrid(event,this,'${t}',${day})" ondragleave="this.classList.remove('over')">
           <div class="wg-empty-hint">Drop here</div></div>`;
         return;
       }
-      const idx   = currentSessions.indexOf(session);
+      const idx   = groupsArray.indexOf(group);
       const color = sessionColor(idx);
-      const code  = allMeetCodes[session.meeting_code];
-      const codeShort = code ? (code.label || code.code.split('-')[0]+'…') : '—';
-      const sids  = session.student_id || [];
+      const code  = allMeetCodes[group.meeting_code];
+      const codeShort = code ? (code.label || group.meeting_code.split('-')[0]+'…') : (group.meeting_code||'—');
+      const sids  = group.studentIds || [];
       const stuChips = sids.slice(0,4).map(sid => {
         const stu = allStudents[sid];
         return `<span class="wb-stu" style="background:${color.chip};color:${color.text}">${stu?(stu.name||'').split(' ')[0]:'?'}</span>`;
       }).join('') + (sids.length>4 ? `<span class="wb-stu" style="background:${color.chip};color:${color.text}">+${sids.length-4}</span>` : '');
 
       html += `<div class="wg-cell has-session">
-        <div class="wg-block" style="background:${color.bg};color:${color.text}" onclick="switchRosterView('sessions');scrollToSession('${session.id}')">
+        <div class="wg-block" style="background:${color.bg};color:${color.text}" onclick="switchRosterView('sessions');scrollToSession('${group.virtualId}')">
           <div class="wb-code">${codeShort}</div>
           <div class="wb-stus">${stuChips || '<span style="font-size:10px;opacity:.6">empty</span>'}</div>
         </div>
@@ -1190,10 +1192,13 @@ function govGrid(ev, el) { ev.preventDefault(); el.classList.add('over'); }
 async function gdropGrid(ev, el, time, day) {
   ev.preventDefault(); el.classList.remove('over');
   if (!draggingStudentId) return;
-  // find or prompt which session at that slot
-  // to-do: fix drop on grid view
-  const session = currentSessions.find(s => (s.weekday||[]).includes(day) && s.session_time === time);
-  if (session) { await addStudentToSession(session.id, draggingStudentId); }
+  // find the session group for this day+time slot
+  const group = Object.values(sessionGroups).find(g => g.weekday === day && g.session_time === time);
+  if (group) {
+    await addStudentToSession(group.virtualId, draggingStudentId);
+  } else {
+    showToast('No session at this slot — create one with + Session first');
+  }
   draggingStudentId = null;
 }
 
@@ -1325,47 +1330,49 @@ async function deleteSession(virtualId) {
 // ADD / EDIT SESSION MODAL
 // ─────────────────────────────────────────────
 function openAddSession() {
-  //mandatory to clear last selected students when opening modal for new session, 
-  //otherwise they will carry over from last creae/clone action which can cause confusion and accidental assignments
   selectedStudentIds = [];
   document.getElementById('modal-title').textContent = 'Add session';
   document.getElementById('clone-roster-id').value = '';
   document.getElementById('modal-time').value = '17:00';
   document.getElementById('modal-duration').value = '60';
   document.getElementById('modal-label').value = '';
-  populateCodeSelect();
+  document.getElementById('modal-stu-search').value = '';
+  document.getElementById('stu-dropdown').style.display = 'none';
+  document.getElementById('selected-students-tags').innerHTML = '';
   document.getElementById('conflict-warning').style.display = 'none';
+  populateCodeSelect();
   document.getElementById('session-modal').classList.add('open');
 }
 
 function cloneSession(virtualId) {
-  document.getElementById('modal-title').textContent = 'Clone session';
   selectedStudentIds = [];
-  
   document.getElementById('conflict-warning').style.display = 'none';
-  document.getElementById('session-modal').classList.add('open');
 
-  // 1. Find the group of records matching this virtual ID
   const sessionGroup = currentSessions.filter(s => getVirtualId(s) === virtualId);
-  if (sessionGroup.length === 0) return;
+  if (sessionGroup.length === 0) { showToast('Session not found'); return; }
 
   const template = sessionGroup[0];
 
-  // 2. Clear UI state
-  document.getElementById('clone-roster-id').value = virtualId; // Ensure it's a "Clone" operation
-  
-  // 3. Populate Student IDs from the entire group
-  selectedStudentIds = sessionGroup.map(s => s.student_id);
+  document.getElementById('modal-title').textContent = 'Clone session';
+  document.getElementById('clone-roster-id').value = virtualId;
 
-  // 4. Fill Modal Fields
-  document.getElementById('modal-code').value = template.meeting_code;
-  document.getElementById('modal-time').value = template.session_time;
+  // populate code dropdown first, then set selected value
   populateCodeSelect(template.meeting_code);
+  
+  document.getElementById('modal-time').value = template.session_time || '09:00';
+  document.getElementById('modal-duration').value = template.duration_mins || 60;
   document.getElementById('modal-day-select').value = template.weekday;
-  document.getElementById('modal-label').value = template.label || "";
+  document.getElementById('modal-label').value = template.label || '';
 
+  // pre-fill students from the entire group
+  selectedStudentIds = sessionGroup.map(s => s.student_id).filter(Boolean);
   renderStudentTags();
-  document.getElementById('session-modal').style.display = 'flex';
+
+  // clear search box
+  document.getElementById('modal-stu-search').value = '';
+  document.getElementById('stu-dropdown').style.display = 'none';
+
+  document.getElementById('session-modal').classList.add('open');
 }
 
 function populateCodeSelect(selectedId) {
@@ -1442,7 +1449,7 @@ async function saveSession() {
     );
     
     if (isBooked) {
-      const studentName = allStudents.find(a => a.id === stuId)?.name || stuId;
+      const studentName = allStudents[stuId]?.name || stuId;
       conflicts.push(studentName);
     }
   });
@@ -1508,20 +1515,13 @@ async function saveSession() {
 function showView(name, el) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('view-'+name).classList.add('active');
-  el.classList.add('active');
-
   const targetView = document.getElementById('view-' + name);
-  if (targetView) {
-    targetView.classList.add('active');
-  }
-  
-  // 3. Mark the clicked tab as active
+  if (targetView) targetView.classList.add('active');
   if (el) el.classList.add('active');
 
-  if (id === 'students') renderStudentsView();
-  if (id === 'teachers') renderTeachersView();
-  if (id === 'codes')    renderCodesView();
+  if (name === 'students') renderStudentsView();
+  if (name === 'teachers') renderTeachersView();
+  if (name === 'codes')    renderCodesView();
 }
 
 function switchRosterView(v) {
@@ -1646,7 +1646,7 @@ async function loadAllData() {
   renderStudentsView();
   renderTeachersView();
   renderCodesView();
-  renderRosterSidebar(); 
+  //renderRosterSidebar(); 
 }
 
 //----ADD STUDENT -----------------------------
@@ -1690,51 +1690,70 @@ async function saveStudent() {
     document.getElementById('stu-display-names').value = "";
     document.getElementById('stu-parent-emails').value = "";
     
+    closeStudentModal();
     await loadStudents(); 
     renderStudentsView();
-    closeModal();
   } catch (e) {
     console.error("Error adding student: ", e);
-    alert("Error saving student.");
+    alert("Error saving student: " + e.message);
+    return;
   }
-  
-  // Refresh local data and UI
-  await loadStudents(); 
-  renderStudentsView();
-  closeModal();
 }
 
 //---- SESSION CREATION & CLONING HELPERS -----------------------------
 let selectedStudentIds = []; // Global state for the modal
 
 function filterStudentList() {
-  const q = document.getElementById('stu-search').value.toLowerCase();
+  const q = document.getElementById('modal-stu-search').value.toLowerCase();
   const list = document.getElementById('stu-dropdown');
-  
-  // Assuming allStudents is your master array from the roster load
-  const html = allStudents
-    .filter(s => s.name.toLowerCase().includes(q) && !selectedStudentIds.includes(s.id))
-    .map(s => `<div class="stu-item" onclick="addStudentToModalSession('${s.id}', '${s.name}')">${s.name}</div>`)
+
+  // allStudents is an object keyed by id — convert to array first
+  const html = Object.values(allStudents)
+    .filter(s => (s.name||'').toLowerCase().includes(q) && !selectedStudentIds.includes(s.id))
+    .sort((a,b) => (a.name||'').localeCompare(b.name||''))
+    .map(s => {
+      const tier = s.tier === 'senior' ? 'lvl-s' : 'lvl-j';
+      const tc = allTeachers.find(t => t.id === s.primaryTeacherId);
+      return `<div class="stu-item" onclick="addStudentToModalSession('${s.id}', '${s.name||''}')">
+        <span class="lvl-badge ${tier}" style="margin-right:6px">${s.level||'?'}</span>
+        ${s.name||'Unnamed'}
+        <span style="color:var(--hint);font-size:11px;margin-left:6px">${tc?.alias||tc?.name||''}</span>
+      </div>`;
+    })
     .join('');
-    
-  list.innerHTML = html;
-  list.style.display = html ? 'block' : 'none';
+
+  list.innerHTML = html || '<div class="stu-item" style="color:var(--hint);cursor:default">No students found</div>';
+  list.style.display = 'block';
 }
+
+// hide dropdown when clicking outside
+document.addEventListener('click', e => {
+  const wrap = document.querySelector('.multi-select-container');
+  if (wrap && !wrap.contains(e.target)) {
+    const dd = document.getElementById('stu-dropdown');
+    if (dd) dd.style.display = 'none';
+  }
+});
 
 function addStudentToModalSession(id, name) {
   if (!selectedStudentIds.includes(id)) {
     selectedStudentIds.push(id);
     renderStudentTags();
   }
-  document.getElementById('stu-search').value = '';
+  document.getElementById('modal-stu-search').value = '';
   document.getElementById('stu-dropdown').style.display = 'none';
 }
 
 function renderStudentTags() {
   const container = document.getElementById('selected-students-tags');
   container.innerHTML = selectedStudentIds.map(id => {
-    const s = allStudents.find(x => x.id === id);
-    return `<span class="tag">${s ? s.name : id} <span class="tag-remove" onclick="removeStudent('${id}')">×</span></span>`;
+    const s = allStudents[id];
+    const tier = s?.tier === 'senior' ? 'lvl-s' : 'lvl-j';
+    return `<span class="tag" style="display:inline-flex;align-items:center;gap:5px;margin:2px">
+      <span class="lvl-badge ${tier}">${s?.level||'?'}</span>
+      ${s ? s.name : id}
+      <span class="tag-remove" onclick="removeStudent('${id}')">×</span>
+    </span>`;
   }).join('');
 }
 
