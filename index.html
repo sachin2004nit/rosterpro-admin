@@ -1179,7 +1179,7 @@ function renderSessionsView() {
     return;
   }
 
-  console.log('Rendering sessions view with ALL students :', allStudents.keys().join(','));
+  console.log('Rendering sessions view with ALL students :', Object.keys(allStudents).join(','));
 
   const groupsArray = Object.values(sessionGroups);
 
