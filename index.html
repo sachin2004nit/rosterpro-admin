@@ -240,7 +240,7 @@ select, input { font-family: inherit; color: var(--text); }
 }
 .stu-chip {
   display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px 4px 6px;
-  border-radius: 6px; font-size: 12px; border: 1px solid; cursor: default;
+  border-radius: 6px; font-size: 12px; border: 1px solid; cursor: grab;
   transition: border-color .12s;
 }
 .stu-chip .chip-lvl {
@@ -775,6 +775,7 @@ select, input { font-family: inherit; color: var(--text); }
     </div>
     <div class="modal-body">
       <input type="hidden" id="clone-roster-id">
+      <input type="hidden" id="edit-roster-id">
       <div class="form-group">
         <label>Meeting code</label>
         <select id="modal-code">
@@ -803,7 +804,7 @@ select, input { font-family: inherit; color: var(--text); }
           <option value="0">Sunday</option>
         </select>
       </div>
-      <div class="form-group">
+      <div class="form-group" id="modal-student-section">
         <label>Add Students to this Session</label>
         <div class="multi-select-container">
           <input type="text" id="modal-stu-search" placeholder="Type to find students..." oninput="filterStudentList()">
@@ -945,6 +946,7 @@ let sessionGroups = {};          // meet_day_time → [data, studentIds, docIds]
 let rosterUnsubscribe = null;    // firestore listener
 let activeFilters = new Set();   // 'junior' | 'senior' | 'free'
 let draggingStudentId = null;
+let draggingFromVirtualId = null;  // set when dragging a chip from a session card
 
 const DAY_NAMES  = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 const DAY_FULL   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -1046,6 +1048,11 @@ function renderStudentList(query = '') {
   const q = query.toLowerCase();
   let students = Object.values(allStudents);
 
+  // Show only the selected teacher's students when a teacher is active
+  if (currentTeacher) {
+    students = students.filter(s => s.primaryTeacherId === currentTeacher.id || (!s.primaryTeacherId) );
+  }
+
   if (activeFilters.has('junior')) students = students.filter(s => s.tier === 'junior');
   if (activeFilters.has('senior')) students = students.filter(s => s.tier === 'senior');
   if (activeFilters.has('free'))   students = students.filter(s => !s.primaryTeacherId);
@@ -1107,10 +1114,12 @@ function onTeacherChange() {
     currentTeacher = null;
     document.getElementById('sessions-view').innerHTML =
       '<div class="loading-state" id="sessions-loading"><p>Select a teacher to view their roster</p></div>';
+    renderStudentList(document.getElementById('stu-search').value);
     renderGridView();
     return;
   }
   currentTeacher = allTeachers.find(t => t.id === teacherId);
+  renderStudentList(document.getElementById('stu-search').value);
   showSessionsLoading();
 
 
@@ -1218,7 +1227,9 @@ function renderSessionsView() {
       }
       const tier = stu.tier === 'senior' ? 'lvl-s' : 'lvl-j';
       const lvl  = stu.level || '?';
-      return `<span class="stu-chip ${cchip}">
+      return `<span class="stu-chip ${cchip}" draggable="true"
+        ondragstart="onChipDragStart(event,'${sid}','${s.virtualId}')"
+        ondragend="onChipDragEnd(event)">
         <span class="chip-lvl ${tier}">${lvl}</span>
         <span class="chip-name">${stu.name||sid}</span>
         <span class="chip-rm" onclick="removeStudentFromSession('${s.virtualId}','${sid}',event)" title="Remove">×</span>
@@ -1322,11 +1333,24 @@ function scrollToSession(id) {
 // ─────────────────────────────────────────────
 function onDragStart(ev, studentId) {
   draggingStudentId = studentId;
+  draggingFromVirtualId = null;  // coming from sidebar
   ev.dataTransfer.effectAllowed = 'copy';
   ev.currentTarget.classList.add('dragging');
 }
 function onDragEnd(ev) {
   ev.currentTarget.classList.remove('dragging');
+}
+
+// Chip dragged from inside a session card
+function onChipDragStart(ev, studentId, fromVirtualId) {
+  ev.stopPropagation();
+  draggingStudentId = studentId;
+  draggingFromVirtualId = fromVirtualId;
+  ev.dataTransfer.effectAllowed = 'move';
+}
+function onChipDragEnd(ev) {
+  draggingStudentId = null;
+  draggingFromVirtualId = null;
 }
 
 function onDragOverSession(ev, virtualId) {
@@ -1343,8 +1367,16 @@ async function onDropSession(ev, virtualId) {
   ev.preventDefault();
   onDragLeaveSession(virtualId);
   if (!draggingStudentId) return;
-  await addStudentToSession(virtualId, draggingStudentId);
+
+  if (draggingFromVirtualId && draggingFromVirtualId !== virtualId) {
+    // Moving a chip from one session card to another
+    await moveStudentBetweenSessions(draggingFromVirtualId, virtualId, draggingStudentId);
+  } else if (!draggingFromVirtualId) {
+    // Dropping from the left sidebar
+    await addStudentToSession(virtualId, draggingStudentId);
+  }
   draggingStudentId = null;
+  draggingFromVirtualId = null;
 }
 
 function govGrid(ev, el) { ev.preventDefault(); el.classList.add('over'); }
@@ -1423,6 +1455,75 @@ async function addStudentToSession(virtualId, studentId) {
   }
 }
 
+async function moveStudentBetweenSessions(fromVirtualId, toVirtualId, studentId) {
+  
+  if (fromVirtualId === toVirtualId) {
+    showToast('Student is already in this session');
+    return;
+  }
+  const fromGroup = sessionGroups[fromVirtualId];
+  const toGroup   = sessionGroups[toVirtualId];
+  if (!fromGroup || !toGroup) { showToast('Session not found'); return; }
+
+  const docId = fromGroup.docIds[studentId];
+  if (!docId) { showToast('Student not found in source session'); return; }
+
+  // Conflict: student already has a session at the target day+time (other than the source)
+  const conflict = currentSessions.find(s =>
+    s.student_id === studentId &&
+    s.weekday     === toGroup.weekday &&
+    s.session_time === toGroup.session_time &&
+    s.docId        !== docId 
+  );
+  // Docid check is only needed in rare conditions; ignore the source session record since we're moving it
+  if (conflict) {
+    showToast(`Conflict: ${allStudents[studentId]?.name || studentId} already has a session at that time`);
+    return;
+  }
+
+  const name = allStudents[studentId]?.name || studentId;
+  try {
+    const updateFields = {
+      meeting_code:  toGroup.meeting_code,
+      weekday:       toGroup.weekday,
+      session_time:  toGroup.session_time,
+      duration_mins: toGroup.duration_mins || 60,
+      label:         toGroup.label || null,
+      upd_at:        firebase.firestore.FieldValue.serverTimestamp()
+    };
+    await db.collection('teacher').doc(currentTeacher.id).collection('roster').doc(docId).update(updateFields);
+
+    await db.collection('teacher').doc(currentTeacher.id).collection('rosterLogs').add({
+      type:      'student_move',
+      studentId,
+      docId,
+      from: {
+        virtualId:    fromVirtualId,
+        meeting_code: fromGroup.meeting_code,
+        weekday:      fromGroup.weekday,
+        session_time: fromGroup.session_time,
+        duration_mins: fromGroup.duration_mins || 60,
+        label:         fromGroup.label || null
+      },
+      to: {
+        virtualId:    toVirtualId,
+        meeting_code: toGroup.meeting_code,
+        weekday:      toGroup.weekday,
+        session_time: toGroup.session_time,
+        duration_mins: toGroup.duration_mins || 60,
+        label:         toGroup.label || null
+      },
+      at: firebase.firestore.FieldValue.serverTimestamp(),
+      by: currentUser.uid
+    });
+
+    showToast(`${name} moved to ${DAY_FULL[toGroup.weekday]} ${formatTime(toGroup.session_time)}`);
+  } catch(e) {
+    console.error('Move error:', e);
+    showToast('Error: ' + e.message);
+  }
+}
+
 async function removeStudentFromSession(virtualId, studentId, ev) {
   ev.stopPropagation();
   const stu = allStudents[studentId];
@@ -1492,12 +1593,14 @@ function openAddSession() {
   selectedStudentIds = [];
   document.getElementById('modal-title').textContent = 'Add session';
   document.getElementById('clone-roster-id').value = '';
+  document.getElementById('edit-roster-id').value = '';
   document.getElementById('modal-time').value = '17:00';
   document.getElementById('modal-duration').value = '60';
   document.getElementById('modal-label').value = '';
   document.getElementById('modal-stu-search').value = '';
   document.getElementById('stu-dropdown').style.display = 'none';
   document.getElementById('selected-students-tags').innerHTML = '';
+  document.getElementById('modal-student-section').style.display = '';
   document.getElementById('conflict-warning').style.display = 'none';
   populateCodeSelect();
   document.getElementById('session-modal').classList.add('open');
@@ -1507,7 +1610,7 @@ async function updateSessionBatch(oldVirtualId, newSessionData) {
   const sessionGroup = sessionGroups[oldVirtualId];
   if (!sessionGroup) return;
 
-  const { meeting_code, weekday, session_time } = newSessionData;
+  const { meeting_code, weekday, session_time, duration_mins, label } = newSessionData;
   const batch = db.batch();
   const rosterRef = db.collection('teacher').doc(currentTeacher.id).collection('roster');
 
@@ -1517,12 +1620,33 @@ async function updateSessionBatch(oldVirtualId, newSessionData) {
       meeting_code: meeting_code,
       weekday: parseInt(weekday),
       session_time: session_time,
+      duration_mins: duration_mins,
+      label: label || null,
       upd_at: firebase.firestore.FieldValue.serverTimestamp()
     });
   });
 
   try {
     await batch.commit();
+
+    // compute only the fields that actually changed
+    const changed = {};
+    if (meeting_code  !== sessionGroup.meeting_code)   changed.meeting_code  = { from: sessionGroup.meeting_code,   to: meeting_code };
+    if (parseInt(weekday) !== sessionGroup.weekday)    changed.weekday       = { from: sessionGroup.weekday,        to: parseInt(weekday) };
+    if (session_time  !== sessionGroup.session_time)   changed.session_time  = { from: sessionGroup.session_time,   to: session_time };
+    if (duration_mins !== sessionGroup.duration_mins)  changed.duration_mins = { from: sessionGroup.duration_mins,  to: duration_mins };
+    if ((label||null) !== (sessionGroup.label||null))  changed.label         = { from: sessionGroup.label||null,    to: label||null };
+
+    await db.collection('teacher').doc(currentTeacher.id).collection('rosterLogs').add({
+      type:      'session_update',
+      virtualId: oldVirtualId,
+      docIds:    Object.values(sessionGroup.docIds),
+      studentIds: sessionGroup.studentIds,
+      changes,
+      at:  firebase.firestore.FieldValue.serverTimestamp(),
+      by:  currentUser.uid
+    });
+
     showToast(`Session updated for ${sessionGroup.studentIds.length} students`);
     closeSessionModal();
   } catch (e) {
@@ -1540,8 +1664,11 @@ function editSession(virtualId) {
   const template = sessionGroup[0];
 
   document.getElementById('modal-title').textContent = 'Edit session';
-  document.getElementById('clone-roster-id').value = "";
+  document.getElementById('clone-roster-id').value = '';
   document.getElementById('edit-roster-id').value = virtualId;
+
+  // Hide student picker — editing only changes code/time/duration/day
+  document.getElementById('modal-student-section').style.display = 'none';
 
   // populate code dropdown first, then set selected value
   populateCodeSelect(template.meeting_code);
@@ -1550,10 +1677,6 @@ function editSession(virtualId) {
   document.getElementById('modal-duration').value = template.duration_mins || 60;
   document.getElementById('modal-day-select').value = template.weekday;
   document.getElementById('modal-label').value = template.label || '';
-
-  // pre-fill students from the entire group
-  selectedStudentIds = sessionGroup.map(s => s.student_id).filter(Boolean);
-  renderStudentTags();
 
   // clear search box
   document.getElementById('modal-stu-search').value = '';
@@ -1573,6 +1696,8 @@ function cloneSession(virtualId) {
 
   document.getElementById('modal-title').textContent = 'Clone session';
   document.getElementById('clone-roster-id').value = virtualId;
+  document.getElementById('edit-roster-id').value = '';
+  document.getElementById('modal-student-section').style.display = '';
 
   // populate code dropdown first, then set selected value
   populateCodeSelect(template.meeting_code);
@@ -1614,6 +1739,7 @@ function closeSessionModal() {
 
 async function saveSession() {
 
+  const isEdit  = !!document.getElementById('edit-roster-id').value;
   const isClone = !!document.getElementById('clone-roster-id').value;
   
   const btn = document.getElementById('btn-save-session');
@@ -1627,6 +1753,15 @@ async function saveSession() {
   
   // 2. Validation Checks
   if (!codeId) { alert('Please select a meeting code'); return; }
+
+  // ── EDIT MODE: update code/time/duration/day for all docs in this session ──
+  if (isEdit) {
+    const editVirtualId = document.getElementById('edit-roster-id').value;
+    btn.disabled = true; btn.textContent = 'Saving…';
+    await updateSessionBatch(editVirtualId, { meeting_code: codeId, weekday: selectedDay, session_time: time, duration_mins: dur, label });
+    btn.disabled = false; btn.textContent = 'Save session';
+    return;
+  }
   
   // New: Ensure at least one student is selected from our global state
   if (!selectedStudentIds || selectedStudentIds.length === 0) { 
