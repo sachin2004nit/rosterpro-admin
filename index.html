@@ -1390,7 +1390,6 @@ async function onDropSession(ev, virtualId) {
     await moveStudentBetweenSessions(draggingFromVirtualId, virtualId, draggingStudentId);
   } else if (!draggingFromVirtualId) {
     // Dropping from the left sidebar
-    
     await addStudentToSession(virtualId, draggingStudentId);
   }
   draggingStudentId = null;
@@ -1461,6 +1460,17 @@ async function addStudentToSession(virtualId, studentId) {
       status: 'active',
       crt_at: firebase.firestore.FieldValue.serverTimestamp(),
       upd_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    await db.collection('teacher').doc(currentTeacher.id).collection('rosterLogs').add({
+      type:         'student_added',
+      student_id:   studentId,
+      meeting_code: sessionGroup.meeting_code,
+      weekday:      sessionGroup.weekday,
+      time:         sessionGroup.session_time,
+      docId:        docRef.id,
+      at:           firebase.firestore.FieldValue.serverTimestamp(),
+      by:           currentUser.uid
     });
 
     showToast(`${name} added to session`);
@@ -1565,10 +1575,22 @@ async function removeStudentFromSession(virtualId, studentId, ev) {
     await db.collection('teacher').doc(currentTeacher.id)
       .collection('roster').doc(docId)
       .delete();
-    
+
     delete sessionGroup.docIds[studentId]; // Update local state immediately for snappier UI
     sessionGroup.studentIds = sessionGroup.studentIds.filter(id => id !== studentId);
     showToast(`${name} removed`);
+
+    await db.collection('teacher').doc(currentTeacher.id).collection('rosterLogs').add({
+      type:         'student_removed',
+      student_id:   studentId,
+      meeting_code: sessionGroup.meeting_code,
+      weekday:      sessionGroup.weekday,
+      time:         sessionGroup.session_time,
+      docId,
+      at:           firebase.firestore.FieldValue.serverTimestamp(),
+      by:           currentUser.uid
+    });
+
   } catch(e) { showToast('Error: '+e.message); }
 }
 
@@ -1599,6 +1621,17 @@ async function deleteSession(virtualId) {
     delete sessionGroups[virtualId]; // Remove from local state immediately for snappier UI update
     showToast(`Session ${virtualId} deleted (${firestoreDocIds.length} records removed)`);
     renderSessionsView(); // Re-render to reflect changes
+
+    await db.collection('teacher').doc(currentTeacher.id).collection('rosterLogs').add({
+      type:         'session_deleted',
+      student_ids:  sessionGroup.studentIds,
+      meeting_code: sessionGroup.meeting_code,
+      weekday:      sessionGroup.weekday,
+      time:         sessionGroup.session_time,
+      duration_mins: sessionGroup.duration_mins || 60,
+      at:           firebase.firestore.FieldValue.serverTimestamp(),
+      by:           currentUser.uid
+    });    
   } catch (e) {
     showToast("Error deleting: " + e.message);
   }
