@@ -1405,10 +1405,10 @@ function renderGridView() {
       const code  = allMeetCodes[group.meeting_code];
       const codeShort = code ? (code.label || group.meeting_code.split('-')[0]+'…') : (group.meeting_code||'—');
       const sids  = group.studentIds || [];
-      const stuChips = sids.slice(0,10).map(sid => {
+      const stuChips = sids.map(sid => {
         const stu = allStudents[sid];
         return `<span class="wb-stu" style="background:${color.chip};color:${color.text}">${stu?(stu.name||'').split(' ')[0]:'?'}</span>`;
-      }).join('') + (sids.length>10 ? `<span class="wb-stu" style="background:${color.chip};color:${color.text}">+${sids.length-10}</span>` : '');
+      }).join('') ;
 
       html += `<div class="wg-cell has-session">
         <div class="wg-block" style="background:${color.bg};color:${color.text}" onclick="switchRosterView('sessions');scrollToSession('${group.virtualId}')">
