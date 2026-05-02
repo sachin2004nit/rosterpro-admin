@@ -1369,10 +1369,13 @@ function onChipDragEnd(ev) {
 
 function onDragOverSession(ev, virtualId) {
   ev.preventDefault();
-  ev.dataTransfer.dropEffect = 'copy';
+  ev.dataTransfer.dropEffect = draggingFromVirtualId ? 'move' : 'copy';
+
+  //ev.dataTransfer.dropEffect = 'copy';
   document.getElementById('sc-'+virtualId)?.classList.add('drop-active');
   document.getElementById('dz-'+virtualId)?.classList.add('over');
 }
+
 function onDragLeaveSession(virtualId) {
   document.getElementById('sc-'+virtualId)?.classList.remove('drop-active');
   document.getElementById('dz-'+virtualId)?.classList.remove('over');
@@ -1387,6 +1390,7 @@ async function onDropSession(ev, virtualId) {
     await moveStudentBetweenSessions(draggingFromVirtualId, virtualId, draggingStudentId);
   } else if (!draggingFromVirtualId) {
     // Dropping from the left sidebar
+    
     await addStudentToSession(virtualId, draggingStudentId);
   }
   draggingStudentId = null;
