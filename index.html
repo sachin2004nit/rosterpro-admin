@@ -566,6 +566,36 @@ select, input { font-family: inherit; color: var(--text); }
 .tag-list{display:flex;gap:4px;flex-wrap:wrap}
 .tag{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--color-text-secondary)}
 
+/* ── STUDENT VIEW FILTER BAR ── */
+.stu-view-filters {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding-bottom: 12px;
+}
+.stu-view-filters h2 { font-size: 15px; font-weight: 500; white-space: nowrap; }
+.stu-view-filters .filter-select {
+  padding: 5px 10px; border: 1px solid var(--border-md); border-radius: var(--radius);
+  font-size: 12px; background: var(--surface); color: var(--text); outline: none;
+  cursor: pointer; min-width: 110px;
+}
+.stu-view-filters .filter-select:focus { border-color: #93b4f7; }
+.stu-view-filters .spacer { flex: 1; }
+
+/* student sessions modal table */
+.ss-table { width:100%; border-collapse:collapse; font-size:12px; }
+.ss-table th {
+  padding: 7px 10px; text-align: left; font-weight: 500;
+  color: var(--muted); border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.ss-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+.ss-table tr:last-child td { border-bottom: none; }
+.ss-teacher-label {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em;
+  margin: 14px 0 6px; padding: 0 2px;
+}
+.ss-teacher-label:first-child { margin-top: 0; }
+
 /* CODES VIEW */
 .codes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
 .code-card{
@@ -737,11 +767,40 @@ select, input { font-family: inherit; color: var(--text); }
   </div>
   <div class="view" id="view-students">
     <div class="people-wrap">
-      <div class="people-hdr"><h2>Students</h2><button class="btn-primary" onclick="openAddStudentModal()">+ Add student</button></div>
+      <!-- filter bar -->
+      <div class="stu-view-filters">
+        <h2>Students <small id="stu-table-count" style="font-size:11px;font-weight:400;color:var(--muted)"></small></h2>
+        <select id="stu-filter-tier" class="filter-select" onchange="applyStudentFilters()">
+          <option value="">All Tiers</option>
+          <option value="junior">Junior</option>
+          <option value="senior">Senior</option>
+        </select>
+        <select id="stu-filter-level" class="filter-select" onchange="applyStudentFilters()">
+          <option value="">All Levels</option>
+          <option value="1">Level 1</option>
+          <option value="2">Level 2</option>
+          <option value="3">Level 3</option>
+          <option value="4">Level 4</option>
+          <option value="5">Level 5</option>
+          <option value="6">Level 6</option>
+          <option value="7">Level 7</option>
+          <option value="8">Level 8</option>
+        </select>
+        <select id="stu-filter-teacher" class="filter-select" onchange="applyStudentFilters()">
+          <option value="">All Teachers</option>
+        </select>
+        <span class="spacer"></span>
+        <button class="btn-primary" onclick="openAddStudentModal()">+ Add student</button>
+      </div>
+      <!-- table — click a row to view that student's sessions across all teachers -->
       <table class="data-table">
-        <thead><tr><th>Name</th><th>Level</th><th>Tier</th><th>Teacher</th><th>Parent emails/displayNames</th><th>Registered</th><th>Actions</th></tr></thead>
-        <tbody>
-        </tbody>
+        <thead>
+          <tr>
+            <th>Name</th><th>Level</th><th>Tier</th><th>Teacher</th>
+            <th>Display names / Parent emails</th><th>Registered</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
       </table>
     </div>
   </div>
@@ -898,6 +957,20 @@ select, input { font-family: inherit; color: var(--text); }
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeCodeModal()">Cancel</button>
       <button class="btn-primary" onclick="saveMeetingCode()">Save Code</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── STUDENT SESSIONS MODAL ── -->
+<div id="stu-sessions-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-content" style="max-width:640px;width:92%">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 id="stu-sessions-title" style="font-size:15px;font-weight:600">Sessions</h3>
+      <button class="modal-close" onclick="closeStudentSessionsModal()">×</button>
+    </div>
+    <div id="stu-sessions-body" style="max-height:480px;overflow-y:auto"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn-cancel" onclick="closeStudentSessionsModal()">Close</button>
     </div>
   </div>
 </div>
@@ -1462,6 +1535,10 @@ async function addStudentToSession(virtualId, studentId) {
       upd_at: firebase.firestore.FieldValue.serverTimestamp()
     });
 
+    showToast(`${name} added to session`);
+    sessionGroups[virtualId].studentIds.push(studentId);
+    sessionGroups[virtualId].docIds[studentId] = docRef.id;
+
     await db.collection('teacher').doc(currentTeacher.id).collection('rosterLogs').add({
       type:         'student_added',
       student_id:   studentId,
@@ -1472,10 +1549,6 @@ async function addStudentToSession(virtualId, studentId) {
       at:           firebase.firestore.FieldValue.serverTimestamp(),
       by:           currentUser.uid
     });
-
-    showToast(`${name} added to session`);
-    sessionGroups[virtualId].studentIds.push(studentId);
-    sessionGroups[virtualId].docIds[studentId] = docRef.id;
     // UI will auto-refresh if you have a snapshot listener on 'roster'
   } catch(e) {
     console.error("Drag-Drop Error:", e);
@@ -1575,7 +1648,7 @@ async function removeStudentFromSession(virtualId, studentId, ev) {
     await db.collection('teacher').doc(currentTeacher.id)
       .collection('roster').doc(docId)
       .delete();
-
+    
     delete sessionGroup.docIds[studentId]; // Update local state immediately for snappier UI
     sessionGroup.studentIds = sessionGroup.studentIds.filter(id => id !== studentId);
     showToast(`${name} removed`);
@@ -1966,21 +2039,42 @@ document.getElementById('session-modal').addEventListener('click', e => {
 });
 
 function renderStudentsView() {
+  // Sync teacher filter dropdown with current allTeachers list
+  const teacherSel = document.getElementById('stu-filter-teacher');
+  if (teacherSel) {
+    const prev = teacherSel.value;
+    teacherSel.innerHTML = '<option value="">All Teachers</option>' +
+      allTeachers.map(t =>
+        `<option value="${t.id}">${t.alias || t.name}</option>`
+      ).join('');
+    teacherSel.value = prev; // restore selection if still valid
+  }
+
+  const tierFilter    = document.getElementById('stu-filter-tier')?.value    || '';
+  const levelFilter   = document.getElementById('stu-filter-level')?.value   || '';
+  const teacherFilter = document.getElementById('stu-filter-teacher')?.value || '';
+
   const container = document.querySelector('#view-students tbody');
-  const students = Object.values(allStudents);
+  let students = Object.values(allStudents);
+
+  if (tierFilter)    students = students.filter(s => s.tier === tierFilter);
+  if (levelFilter)   students = students.filter(s => String(s.level) === levelFilter);
+  if (teacherFilter) students = students.filter(s => s.primaryTeacherId === teacherFilter);
+
+  students.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+
+  const countEl = document.getElementById('stu-table-count');
+  if (countEl) countEl.textContent = `(${students.length})`;
 
   container.innerHTML = students.map(s => {
-    // Find teacher alias using primaryTeacherId
     const teacher = allTeachers.find(t => t.id === s.primaryTeacherId);
     const teacherName = teacher ? (teacher.alias || teacher.name) : 'Unassigned';
-    
     const regDate = s.dateOfReg ? formatDate(s.dateOfReg) : '—';
-    const displayTags = (s.displayNames || []).map(name => `<span class="tag">${name}</span>`).join('');
-    const emailTags = (s.parentEmails || []).map(email => `<span class="tag" style="border-color:var(--blue-bdr)">${email}</span>`).join('');
-
+    const displayTags = (s.displayNames || []).map(n => `<span class="tag">${n}</span>`).join('');
+    const emailTags   = (s.parentEmails  || []).map(e => `<span class="tag" style="border-color:var(--blue-bdr)">${e}</span>`).join('');
 
     return `
-      <tr>
+      <tr style="cursor:pointer" onclick="openStudentSessions('${s.id}')" title="Click to view sessions">
         <td><strong>${s.name || 'Unnamed'}</strong></td>
         <td><span class="badge badge-l">Lvl ${s.level || '?'}</span></td>
         <td><span class="badge badge-${s.tier === 'senior' ? 's' : 'j'}">${s.tier || '—'}</span></td>
@@ -1990,13 +2084,17 @@ function renderStudentsView() {
           <div class="tag-list" style="margin-top:4px">${emailTags}</div>
         </td>
         <td style="color:var(--color-text-secondary)">${regDate}</td>
-        <td>
-          <button class="btn-primary" style="padding:2px 8px; font-size:11px" onclick="openAddStudentModal('${s.id}')">✎</button>
-          <button class="btn-primary" style="padding:2px 8px; font-size:11px; color:var(--danger)" onclick="deleteStudent('${s.id}')">✕</button>
+        <td onclick="event.stopPropagation()">
+          <button class="btn-primary" style="padding:2px 8px;font-size:11px"
+            onclick="openAddStudentModal('${s.id}')">✎</button>
+          <button class="btn-primary" style="padding:2px 8px;font-size:11px;color:var(--danger)"
+            onclick="deleteStudent('${s.id}')">✕</button>
         </td>
       </tr>`;
   }).join('');
 }
+
+function applyStudentFilters() { renderStudentsView(); }
 
 function renderTeachersView() {
   const container = document.querySelector('#view-teachers tbody');
@@ -2121,10 +2219,35 @@ async function saveStudent(keepOpen = false) {
   try {
 
     if (stuId) {
-      await db.collection('students').doc(stuId).update(studentData);
+      // ── AUDIT LOG: capture old values before overwriting ──
+      const oldData = allStudents[stuId] || {};
+      // version: if field absent on doc, treat as null ("not present")
+      const oldVersion = (oldData.version !== undefined) ? oldData.version : null;
+      const newVersion = (oldVersion !== null ? oldVersion : 1) + 1;
+      // Update student doc, bumping version
+      await db.collection('students').doc(stuId).update({
+        ...studentData,
+        version: newVersion,
+      });
       showToast("Student updated");
+
+      // Write old-values snapshot to students/{stuId}/logs
+      await db.collection('students').doc(stuId).collection('logs').add({
+        name:            oldData.name            !== undefined ? oldData.name            : null,
+        level:           oldData.level           !== undefined ? oldData.level           : null,
+        tier:            oldData.tier            !== undefined ? oldData.tier            : null,
+        primaryTeacherId:oldData.primaryTeacherId!== undefined ? oldData.primaryTeacherId: null,
+        displayNames:    oldData.displayNames    !== undefined ? oldData.displayNames    : null,
+        parentEmails:    oldData.parentEmails    !== undefined ? oldData.parentEmails    : null,
+        version:         oldVersion,   // null means field was absent before first edit
+        at:              firebase.firestore.FieldValue.serverTimestamp(),
+        by:              currentUser.uid,
+      });
+
     } else {
+      // New student: initialise version at 1
       studentData.dateOfReg = new Date().toISOString();
+      studentData.version   = 1;
       await db.collection('students').add(studentData);
       showToast("Student added");
     }    
@@ -2161,6 +2284,124 @@ async function deleteStudent(stuId) {
     await loadStudents();
     renderStudentsView();
   } catch (e) { showToast("Error deleting: " + e.message); }
+}
+
+// ─────────────────────────────────────────────
+// STUDENT SESSIONS VIEWER (collection group query)
+// ─────────────────────────────────────────────
+//
+// Firestore setup required (one-time):
+//   Firebase Console → Firestore Database → Indexes tab
+//   → Add index → Collection group: roster
+//                 Field: student_id  (Ascending)
+//                 Query scope: Collection group
+//   Firebase will generate a direct link in the error message below
+//   if the index doesn't exist yet.
+//
+async function openStudentSessions(stuId) {
+  const stu = allStudents[stuId];
+  document.getElementById('stu-sessions-title').textContent =
+    `Sessions — ${stu?.name || stuId}`;
+  const body = document.getElementById('stu-sessions-body');
+  body.innerHTML = '<div style="display:flex;justify-content:center;padding:24px"><div class="spinner"></div></div>';
+  document.getElementById('stu-sessions-modal').style.display = 'flex';
+
+  try {
+    // Collection group query across ALL teachers' roster subcollections
+    const snap = await db.collectionGroup('roster')
+      .where('student_id', '==', stuId)
+      .where('status', '!=', 'deleted')
+      .get();
+
+    const sessions = [];
+    snap.forEach(doc => {
+      const data = doc.data();
+      sessions.push({ id: doc.id, ...data, _path: doc.ref.path });
+    });
+
+    renderStudentSessionsList(sessions, stu);
+  } catch (e) {
+    // Most common failure: missing collection-group index
+    const isIndexError = e.message && e.message.toLowerCase().includes('index');
+    body.innerHTML = `
+      <div style="padding:12px;color:var(--danger);font-size:13px">
+        <strong>Error:</strong> ${e.message}
+      </div>
+      ${isIndexError ? `
+      <div style="padding:0 12px 14px;font-size:12px;color:var(--muted);line-height:1.6">
+        <strong>Fix:</strong> Create a Collection group index in Firebase Console:<br>
+        Firebase Console → Firestore Database → <em>Indexes</em> tab →
+        <em>Add index</em> → Collection group: <code>roster</code>,
+        Field: <code>student_id</code>, Scope: <strong>Collection group</strong>.<br>
+        The error message above may contain a direct link to create it automatically.
+      </div>` : ''}`;
+  }
+}
+
+function renderStudentSessionsList(sessions, stu) {
+  const body = document.getElementById('stu-sessions-body');
+
+  if (!sessions.length) {
+    body.innerHTML = '<p style="color:var(--muted);padding:14px;text-align:center">No active sessions found for this student.</p>';
+    return;
+  }
+
+  // Group sessions by teacher (path = teacher/{teacherId}/roster/{docId})
+  const byTeacher = {};
+  sessions.forEach(s => {
+    const parts = (s._path || '').split('/');
+    const teacherId = parts[1] || 'unknown';
+    if (!byTeacher[teacherId]) byTeacher[teacherId] = [];
+    byTeacher[teacherId].push(s);
+  });
+
+  const totalLabel = `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+    ${sessions.length} session${sessions.length !== 1 ? 's' : ''} across
+    ${Object.keys(byTeacher).length} teacher${Object.keys(byTeacher).length !== 1 ? 's' : ''}
+  </div>`;
+
+  let html = '';
+  Object.entries(byTeacher).forEach(([teacherId, teacherSessions]) => {
+    const teacher = allTeachers.find(t => t.id === teacherId);
+    const teacherName = teacher ? (teacher.alias || teacher.name) : teacherId;
+
+    // Sort by weekday then time
+    teacherSessions.sort((a, b) => {
+      if (a.weekday !== b.weekday) return a.weekday - b.weekday;
+      return (a.session_time || '').localeCompare(b.session_time || '');
+    });
+
+    html += `<div class="ss-teacher-label">${teacherName}</div>
+    <table class="ss-table">
+      <thead>
+        <tr>
+          <th>Day</th><th>Time</th><th>Duration</th><th>Code / Room</th><th>Label</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${teacherSessions.map(s => {
+          const code = allMeetCodes[s.meeting_code];
+          const codeStr = code ? (code.label || code.code) : (s.meeting_code || '—');
+          const day  = DAY_FULL[s.weekday] || '—';
+          const time = formatTime(s.session_time);
+          const dur  = s.duration_mins ? `${s.duration_mins} min` : '—';
+          return `<tr>
+            <td>${day}</td>
+            <td>${time}</td>
+            <td>${dur}</td>
+            <td style="font-family:monospace;font-size:11px">${codeStr}</td>
+            <td style="color:var(--muted)">${s.label || '—'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+  });
+
+  body.innerHTML = totalLabel + html;
+}
+
+function closeStudentSessionsModal() {
+  document.getElementById('stu-sessions-modal').style.display = 'none';
 }
 
 //---- SESSION CREATION & CLONING HELPERS -----------------------------
