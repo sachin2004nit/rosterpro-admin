@@ -969,6 +969,20 @@ function sessionColor(idx) {
 } 
 function chipColor(idx)    { return CHIP_COLORS[idx % CHIP_COLORS.length]; }
 
+function maskString(str, front = 2, back = 2) {
+  if (!str || typeof str !== 'string') return '';
+  
+  // If the string is too short to mask effectively, return a generic placeholder
+  if (str.length <= front + back) {
+    return '***'; 
+  }
+
+  const start = str.slice(0, front);
+  const end = str.slice(-back);
+  
+  return `${start}***${end}`;
+}
+
 // ─────────────────────────────────────────────
 // AUTH
 // ─────────────────────────────────────────────
@@ -1151,13 +1165,13 @@ function onTeacherChange() {
             studentIds: [], // We will collect all student IDs here
             docIds: {} // Keep track of original doc IDs for deletion
           };
-          console.warn('New session group:', vId, ""+record);
+          console.log('New session group:', vId);
         }
         sessionGroups[vId].studentIds.push(record.student_id);
         sessionGroups[vId].docIds[record.student_id] = record.id;
         studentCounter++;
       });
-      console.log('##Session Count:', Object.keys(sessionGroups).length, ", ## total students sessions:", studentCounter +" teacher "+teacherId);
+      console.log('##Session Count:', Object.keys(sessionGroups).length, ", ## total students sessions:", studentCounter +" teacher "+maskString(teacherId));
       renderSessionsView();
       renderGridView();
     }, err => {
@@ -1200,7 +1214,7 @@ function renderSessionsView() {
     return;
   }
 
-  console.log('Rendering sessions view with ALL students :', Object.keys(allStudents).join(','));
+  //console.log('Rendering sessions view with ALL students :', Object.keys(allStudents).join(','));
 
   const groupsArray = Object.values(sessionGroups);
 
@@ -1214,7 +1228,7 @@ function renderSessionsView() {
     const time   = formatTime(s.session_time);
     const dur    = s.duration_mins ? `${s.duration_mins} min` : '';
     const studentIds = s.studentIds || [];
-    console.log('Rendering session', s.virtualId, 'with students', studentIds.join(','));
+    //console.log('Rendering session', s.virtualId, 'with students', studentIds.join(','));
     const label  = s.label ? `<span style="font-size:11px;color:var(--hint);font-weight:400">${s.label}</span>` : '';
     const isGroup = studentIds.length > 1;
 
