@@ -1656,7 +1656,7 @@ async function updateSessionBatch(oldVirtualId, newSessionData) {
       virtualId: oldVirtualId,
       docIds:    Object.values(sessionGroup.docIds),
       studentIds: sessionGroup.studentIds,
-      changes,
+      changed,
       at:  firebase.firestore.FieldValue.serverTimestamp(),
       by:  currentUser.uid
     });
