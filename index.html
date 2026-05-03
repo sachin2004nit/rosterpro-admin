@@ -821,9 +821,9 @@ select, input { font-family: inherit; color: var(--text); }
   </div>
   <div class="view" id="view-teachers">
     <div class="people-wrap">
-    <div class="people-hdr"><h2>Teachers</h2><button class="btn-primary">+ Add teacher</button></div>
+    <div class="people-hdr"><h2>Teachers</h2><label class="btn-primary">Teacher is added through a script</label></div>
     <table class="data-table">
-      <thead><tr><th>Name</th><th>Alias</th><th>Email</th><th>Students</th><th>UID</th></tr></thead>
+      <thead><tr><th>Name</th><th>Alias</th><th>Email</th><th>Students</th><th>UID</th><th>Actions</th></tr></thead>
       <tbody>
       </tbody>
     </table>
@@ -990,6 +990,29 @@ select, input { font-family: inherit; color: var(--text); }
   </div>
 </div>
 
+<!-- ── EDIT TEACHER MODAL ── -->
+<div id="teacher-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <h3>Edit Teacher</h3>
+    <input type="hidden" id="edit-teacher-id">
+    <div class="form-group">
+      <label>Full Name</label>
+      <input type="text" id="teacher-name" placeholder="e.g. Priya Sharma">
+    </div>
+    <div class="form-group">
+      <label>Alias (short name for UI)</label>
+      <input type="text" id="teacher-alias" placeholder="e.g. Priya S.">
+    </div>
+    <div class="form-group" style="background:var(--bg);padding:8px;border-radius:4px;font-size:11px;color:var(--muted)">
+      <strong>Email (fixed):</strong> <span id="teacher-email-display">—</span><br>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeTeacherModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveTeacher()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- toast -->
 <div class="toast" id="toast"></div>
 
@@ -1013,8 +1036,7 @@ const FIREBASE_CONFIG = {
 // ─────────────────────────────────────────────
 const ALLOWED_UIDS = [
   "oRzgo5FQh3UIqnLTA3vWlfLgkrj1",
-  "REPLACE_WITH_ADMIN_UID_2",
-  "REPLACE_WITH_ADMIN_UID_3",
+  "kgom8gLbn8NajMO6aEsYRt1XAnC2"
 ];
 
 // ─────────────────────────────────────────────
@@ -2125,6 +2147,9 @@ function renderTeachersView() {
         <td style="color:var(--color-text-secondary)">${t.email || '—'}</td>
         <td><span class="badge badge-j">${studentCount} active</span></td>
         <td style="font-family:var(--font-mono);font-size:11px;color:var(--color-text-tertiary)">${t.id}</td>
+        <td onclick="event.stopPropagation()">
+          <button class="btn-primary" style="padding:2px 8px;font-size:11px" onclick="openTeacherModal('${t.id}')">✎</button>
+        </td>
       </tr>`;
   }).join('');
 }
@@ -2548,6 +2573,43 @@ function closeCodeModal() {
   const teacherSelect = document.getElementById('code-default-teacher');
   if (teacherSelect) {
     teacherSelect.value = "";
+  }
+}
+
+function openTeacherModal(teacherId) {
+  const t = allTeachers.find(x => x.id === teacherId);
+  if (!t) return;
+  
+  document.getElementById('edit-teacher-id').value = teacherId;
+  document.getElementById('teacher-name').value = t.name || '';
+  document.getElementById('teacher-alias').value = t.alias || '';
+  document.getElementById('teacher-email-display').textContent = t.email || '—';
+  document.getElementById('teacher-modal').style.display = 'flex';
+}
+
+function closeTeacherModal() {
+  document.getElementById('teacher-modal').style.display = 'none';
+}
+
+async function saveTeacher() {
+  const teacherId = document.getElementById('edit-teacher-id').value;
+  const data = {
+    name: document.getElementById('teacher-name').value,
+    alias: document.getElementById('teacher-alias').value,
+    upd_at: firebase.firestore.FieldValue.serverTimestamp(),
+    upd_by: currentUser.uid,
+  };
+  
+  if (!data.name) return alert('Enter name');
+  
+  try {
+    await db.collection('teachers').doc(teacherId).update(data);
+    showToast('Teacher updated');
+    closeTeacherModal();
+    await loadTeachers();
+    renderTeachersView();
+  } catch(e) {
+    showToast('Error: ' + e.message);
   }
 }
 
