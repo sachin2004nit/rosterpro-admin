@@ -785,6 +785,8 @@ select, input { font-family: inherit; color: var(--text); }
       <!-- filter bar -->
       <div class="stu-view-filters">
         <h2>Students <small id="stu-table-count" style="font-size:11px;font-weight:400;color:var(--muted)"></small></h2>
+        <input type="text" id="stu-name-search" class="filter-select" placeholder="Search name…"
+          oninput="applyStudentFilters()" style="min-width:150px">
         <select id="stu-filter-tier" class="filter-select" onchange="applyStudentFilters()">
           <option value="">All Tiers</option>
           <option value="junior">Junior</option>
@@ -804,6 +806,9 @@ select, input { font-family: inherit; color: var(--text); }
         <select id="stu-filter-teacher" class="filter-select" onchange="applyStudentFilters()">
           <option value="">All Teachers</option>
         </select>
+        <select id="stu-filter-timezone" class="filter-select" onchange="applyStudentFilters()">
+          <option value="">All Timezones</option>
+        </select>
         <span class="spacer"></span>
         <button class="btn-primary" onclick="openAddStudentModal()">+ Add student</button>
       </div>
@@ -812,6 +817,7 @@ select, input { font-family: inherit; color: var(--text); }
         <thead>
           <tr>
             <th>Name</th><th>Level</th><th>Tier</th><th>Teacher</th>
+            <th>Timezone</th>
             <th>Display names / Parent emails</th><th>Registered</th><th>Actions</th>
           </tr>
         </thead>
@@ -944,6 +950,33 @@ select, input { font-family: inherit; color: var(--text); }
       <label>Parent Emails (comma separated)</label>
       <input type="email" id="stu-parent-emails" placeholder="mom@email.com, dad@email.com">
     </div>
+    <div class="form-group">
+      <label>Student Timezone</label>
+      <select id="stu-timezone">
+        <option value="Asia/Kolkata">Asia/Kolkata (IST, UTC+5:30)</option>
+        <option value="America/New_York">America/New_York (EST/EDT)</option>
+        <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+        <option value="America/Denver">America/Denver (MST/MDT)</option>
+        <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+        <option value="Europe/London">Europe/London (GMT/BST)</option>
+        <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+        <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+        <option value="Asia/Tel_Aviv">Asia/Tel_Aviv (IST, UTC+2)</option>
+        <option value="Asia/Riyadh">Asia/Riyadh (AST, UTC+3)</option>
+        <option value="Asia/Doha">Asia/Doha (AST, UTC+3)</option>
+        <option value="Asia/Dubai">Asia/Dubai (GST, UTC+4)</option>
+        <option value="Asia/Jakarta">Asia/Jakarta (WIB, UTC+7)</option>
+        <option value="Asia/Singapore">Asia/Singapore (SGT, UTC+8)</option>
+        <option value="Asia/Tokyo">Asia/Tokyo (JST, UTC+9)</option>
+        <option value="Asia/Shanghai">Asia/Shanghai (CST, UTC+8)</option>
+        <option value="Australia/Perth">Australia/Perth (AWST, UTC+8)</option>
+        <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+        <option value="Pacific/Auckland">Pacific/Auckland (NZST/NZDT)</option>
+        <option value="Africa/Johannesburg">Africa/Johannesburg (SAST, UTC+2)</option>
+        <option value="America/Toronto">America/Toronto (EST/EDT)</option>
+        <option value="America/Sao_Paulo">America/Sao_Paulo (BRT)</option>
+      </select>
+    </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeStudentModal()">Cancel</button>
       <button class="btn-secondary" id="btn-save-another" onclick="saveStudent(true)">Save & Add Another</button>
@@ -980,7 +1013,12 @@ select, input { font-family: inherit; color: var(--text); }
 <div id="stu-sessions-modal" class="modal-overlay" style="display:none;">
   <div class="modal-content" style="max-width:640px;width:92%">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <h3 id="stu-sessions-title" style="font-size:15px;font-weight:600">Sessions</h3>
+      <div>
+        <h3 id="stu-sessions-title" style="font-size:15px;font-weight:600">Sessions</h3>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">
+          Student timezone: <span id="stu-sessions-tz" style="color:var(--blue)">—</span>
+        </div>
+      </div>
       <button class="modal-close" onclick="closeStudentSessionsModal()">×</button>
     </div>
     <div id="stu-sessions-body" style="max-height:480px;overflow-y:auto"></div>
@@ -2076,27 +2114,39 @@ document.getElementById('session-modal').addEventListener('click', e => {
 });
 
 function renderStudentsView() {
-  // Sync teacher filter dropdown with current allTeachers list
+  // Sync teacher filter dropdown
   const teacherSel = document.getElementById('stu-filter-teacher');
   if (teacherSel) {
     const prev = teacherSel.value;
     teacherSel.innerHTML = '<option value="">All Teachers</option>' +
-      allTeachers.map(t =>
-        `<option value="${t.id}">${t.alias || t.name}</option>`
-      ).join('');
-    teacherSel.value = prev; // restore selection if still valid
+      allTeachers.map(t => `<option value="${t.id}">${t.alias || t.name}</option>`).join('');
+    teacherSel.value = prev;
   }
 
+  // Sync timezone filter dropdown — only show timezones that exist in data
+  const tzSel = document.getElementById('stu-filter-timezone');
+  if (tzSel) {
+    const prevTz = tzSel.value;
+    const usedTzs = [...new Set(Object.values(allStudents).map(s => s.timezone).filter(Boolean))].sort();
+    tzSel.innerHTML = '<option value="">All Timezones</option>' +
+      usedTzs.map(tz => `<option value="${tz}">${tz}</option>`).join('');
+    if (usedTzs.includes(prevTz)) tzSel.value = prevTz;
+  }
+
+  const nameSearch    = (document.getElementById('stu-name-search')?.value   || '').toLowerCase();
   const tierFilter    = document.getElementById('stu-filter-tier')?.value    || '';
   const levelFilter   = document.getElementById('stu-filter-level')?.value   || '';
   const teacherFilter = document.getElementById('stu-filter-teacher')?.value || '';
+  const tzFilter      = document.getElementById('stu-filter-timezone')?.value || '';
 
   const container = document.querySelector('#view-students tbody');
   let students = Object.values(allStudents);
 
-  if (tierFilter)    students = students.filter(s => s.tier === tierFilter);
-  if (levelFilter)   students = students.filter(s => String(s.level) === levelFilter);
-  if (teacherFilter) students = students.filter(s => s.primaryTeacherId === teacherFilter);
+  if (nameSearch)     students = students.filter(s => (s.name||'').toLowerCase().includes(nameSearch));
+  if (tierFilter)     students = students.filter(s => s.tier === tierFilter);
+  if (levelFilter)    students = students.filter(s => String(s.level) === levelFilter);
+  if (teacherFilter)  students = students.filter(s => s.primaryTeacherId === teacherFilter);
+  if (tzFilter)       students = students.filter(s => s.timezone === tzFilter);
 
   students.sort((a,b) => (a.name||'').localeCompare(b.name||''));
 
@@ -2104,11 +2154,13 @@ function renderStudentsView() {
   if (countEl) countEl.textContent = `(${students.length})`;
 
   container.innerHTML = students.map(s => {
-    const teacher = allTeachers.find(t => t.id === s.primaryTeacherId);
+    const teacher     = allTeachers.find(t => t.id === s.primaryTeacherId);
     const teacherName = teacher ? (teacher.alias || teacher.name) : 'Unassigned';
-    const regDate = s.dateOfReg ? formatDate(s.dateOfReg) : '—';
+    const regDate     = s.dateOfReg ? formatDate(s.dateOfReg) : '—';
     const displayTags = (s.displayNames || []).map(n => `<span class="tag">${n}</span>`).join('');
     const emailTags   = (s.parentEmails  || []).map(e => `<span class="tag" style="border-color:var(--blue-bdr)">${e}</span>`).join('');
+    const tz          = s.timezone || 'Asia/Kolkata';
+    const tzShort     = tz.split('/').pop().replace('_',' '); // e.g. "Kolkata"
 
     return `
       <tr style="cursor:pointer" onclick="openStudentSessions('${s.id}')" title="Click to view sessions">
@@ -2116,6 +2168,9 @@ function renderStudentsView() {
         <td><span class="badge badge-l">Lvl ${s.level || '?'}</span></td>
         <td><span class="badge badge-${s.tier === 'senior' ? 's' : 'j'}">${s.tier || '—'}</span></td>
         <td>${teacherName}</td>
+        <td title="${tz}">
+          <span class="tag" style="font-size:11px">${tzShort}</span>
+        </td>
         <td>
           <div class="tag-list">${displayTags}</div>
           <div class="tag-list" style="margin-top:4px">${emailTags}</div>
@@ -2223,6 +2278,7 @@ function openAddStudentModal(stuId = null) {
     document.getElementById('stu-display-names').value = (s.displayNames || []).join(', ');
     document.getElementById('stu-teacher-select').value = s.primaryTeacherId || '';
     document.getElementById('stu-parent-emails').value = (s.parentEmails || []).join(', ');
+    document.getElementById('stu-timezone').value = s.timezone || 'Asia/Kolkata';
   } else {
     // Reset for Add New
     document.getElementById('stu-modal-title').textContent = "Add New Student";
@@ -2251,6 +2307,7 @@ async function saveStudent(keepOpen = false) {
     status: 'active',
     displayNames: stringToArray(document.getElementById('stu-display-names').value),
     parentEmails: stringToArray(document.getElementById('stu-parent-emails').value),
+    timezone: document.getElementById('stu-timezone').value || 'Asia/Kolkata',
     upd_at: firebase.firestore.FieldValue.serverTimestamp(),
   };
 
@@ -2264,6 +2321,7 @@ async function saveStudent(keepOpen = false) {
       // version: if field absent on doc, treat as null ("not present")
       const oldVersion = (oldData.version !== undefined) ? oldData.version : null;
       const newVersion = (oldVersion !== null ? oldVersion : 1) + 1;
+      const oldTz = oldData.timezone || '';
       // Update student doc, bumping version
       await db.collection('students').doc(stuId).update({
         ...studentData,
@@ -2271,19 +2329,38 @@ async function saveStudent(keepOpen = false) {
       });
       showToast("Student updated");
 
-      // Write old-values snapshot to students/{stuId}/logs
-      await db.collection('students').doc(stuId).collection('logs').add({
-        name:            oldData.name            !== undefined ? oldData.name            : null,
-        level:           oldData.level           !== undefined ? oldData.level           : null,
-        tier:            oldData.tier            !== undefined ? oldData.tier            : null,
-        primaryTeacherId:oldData.primaryTeacherId!== undefined ? oldData.primaryTeacherId: null,
-        displayNames:    oldData.displayNames    !== undefined ? oldData.displayNames    : null,
-        parentEmails:    oldData.parentEmails    !== undefined ? oldData.parentEmails    : null,
-        version:         oldVersion,   // null means field was absent before first edit
-        at:              firebase.firestore.FieldValue.serverTimestamp(),
-        by:              currentUser.uid,
-      });
+      const logData = {
+        version: oldVersion,
+        at: firebase.firestore.FieldValue.serverTimestamp(),
+        by: currentUser.uid,
+      };
 
+      // helper to add only changed fields
+      const addIfChanged = (key, oldVal, newVal) => {
+        const isDifferent =
+          JSON.stringify(oldVal ?? null) !== JSON.stringify(newVal ?? null);
+
+        if (isDifferent) {
+          logData[key] = oldVal !== undefined ? oldVal : null;
+        }
+      };
+
+      addIfChanged('name', oldData.name, studentData.name);
+      addIfChanged('level', oldData.level, studentData.level);
+      addIfChanged('tier', oldData.tier, studentData.tier);
+      addIfChanged('primaryTeacherId', oldData.primaryTeacherId, studentData.primaryTeacherId);
+      addIfChanged('displayNames', oldData.displayNames, studentData.displayNames);
+      addIfChanged('parentEmails', oldData.parentEmails, studentData.parentEmails);
+      addIfChanged('timezone', oldTz, studentData.timezone);  
+
+      // Write old-values snapshot to students/{stuId}/logs
+      // only write if something actually changed
+      if (Object.keys(logData).length > 3) {
+        await db.collection('students')
+          .doc(stuId)
+          .collection('logs')
+          .add(logData);
+      }
     } else {
       // New student: initialise version at 1
       studentData.dateOfReg = new Date().toISOString();
@@ -2301,9 +2378,6 @@ async function saveStudent(keepOpen = false) {
 
     if (keepOpen) {
       // Clear fields for the next entry but keep the modal visible
-      document.getElementById('stu-name').value = "";
-      document.getElementById('stu-display-names').value = "";
-      document.getElementById('stu-parent-emails').value = "";
       document.getElementById('edit-stu-id').value = ""; // Ensure next one isn't an 'edit'
       document.getElementById('stu-name').focus(); // Put cursor back in name field
     } else {
@@ -2340,8 +2414,10 @@ async function deleteStudent(stuId) {
 //
 async function openStudentSessions(stuId) {
   const stu = allStudents[stuId];
+  const stuTz = stu?.timezone || 'Asia/Kolkata';
   document.getElementById('stu-sessions-title').textContent =
     `Sessions — ${stu?.name || stuId}`;
+  document.getElementById('stu-sessions-tz').textContent = stuTz;
   const body = document.getElementById('stu-sessions-body');
   body.innerHTML = '<div style="display:flex;justify-content:center;padding:24px"><div class="spinner"></div></div>';
   document.getElementById('stu-sessions-modal').style.display = 'flex';
@@ -2386,6 +2462,34 @@ function renderStudentSessionsList(sessions, stu) {
     return;
   }
 
+  const stuTz    = stu?.timezone || 'Asia/Kolkata';
+  const adminTz  = Intl.DateTimeFormat().resolvedOptions().timeZone; // browser's local tz
+  const srcTz    = 'Asia/Kolkata'; // all session_times are stored in IST
+
+  // Convert "HH:MM" stored in srcTz → display in targetTz
+  function convertTime(hhmm, targetTz) {
+    if (!hhmm) return '—';
+    try {
+      // Use a fixed reference date (avoids DST edge-cases on random dates)
+      const [hh, mm] = hhmm.split(':').map(Number);
+      // Build a date in IST using a UTC offset trick via Intl
+      const refDate = new Date();
+      refDate.setFullYear(2024, 0, 8); // Monday Jan 8 2024 — safe reference
+      // Get the UTC ms that corresponds to hhmm in srcTz
+      const srcFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: srcTz, year:'numeric', month:'2-digit', day:'2-digit',
+        hour:'2-digit', minute:'2-digit', hour12: false
+      });
+      // Approach: use the known offset between IST and target
+      const srcStr = `2024-01-08T${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:00`;
+      // Convert via formatting a known UTC moment
+      const utcDate = new Date(srcStr + '+05:30'); // IST = UTC+5:30
+      return utcDate.toLocaleTimeString('en-US', {
+        timeZone: targetTz, hour: '2-digit', minute: '2-digit', hour12: true
+      });
+    } catch(e) { return hhmm; }
+  }
+
   // Group sessions by teacher (path = teacher/{teacherId}/roster/{docId})
   const byTeacher = {};
   sessions.forEach(s => {
@@ -2395,39 +2499,63 @@ function renderStudentSessionsList(sessions, stu) {
     byTeacher[teacherId].push(s);
   });
 
-  const totalLabel = `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">
-    ${sessions.length} session${sessions.length !== 1 ? 's' : ''} across
-    ${Object.keys(byTeacher).length} teacher${Object.keys(byTeacher).length !== 1 ? 's' : ''}
-  </div>`;
+  const sameTimezone = stuTz === adminTz;
+  const tzHeader = sameTimezone
+    ? `<span style="color:var(--green);font-size:11px">✓ Same timezone as admin (${adminTz})</span>`
+    : `<span style="font-size:11px;color:var(--muted)">
+        Admin: <strong style="color:var(--text)">${adminTz}</strong>
+        &nbsp;·&nbsp; Student: <strong style="color:var(--blue)">${stuTz}</strong>
+       </span>`;
+
+  const totalLabel = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px">
+      <span style="font-size:12px;color:var(--muted)">
+        ${sessions.length} session${sessions.length !== 1 ? 's' : ''} across
+        ${Object.keys(byTeacher).length} teacher${Object.keys(byTeacher).length !== 1 ? 's' : ''}
+      </span>
+      ${tzHeader}
+    </div>`;
 
   let html = '';
   Object.entries(byTeacher).forEach(([teacherId, teacherSessions]) => {
-    const teacher = allTeachers.find(t => t.id === teacherId);
+    const teacher     = allTeachers.find(t => t.id === teacherId);
     const teacherName = teacher ? (teacher.alias || teacher.name) : teacherId;
 
-    // Sort by weekday then time
     teacherSessions.sort((a, b) => {
       if (a.weekday !== b.weekday) return a.weekday - b.weekday;
       return (a.session_time || '').localeCompare(b.session_time || '');
     });
 
+    const timeColHeaders = sameTimezone
+      ? `<th>Time (${adminTz.split('/').pop()})</th>`
+      : `<th>Time (Admin · ${adminTz.split('/').pop()})</th>
+         <th style="color:var(--blue)">Time (Student · ${stuTz.split('/').pop()})</th>`;
+
     html += `<div class="ss-teacher-label">${teacherName}</div>
     <table class="ss-table">
       <thead>
         <tr>
-          <th>Day</th><th>Time</th><th>Duration</th><th>Code / Room</th><th>Label</th>
+          <th>Day</th>${timeColHeaders}<th>Duration</th><th>Code / Room</th><th>Label</th>
         </tr>
       </thead>
       <tbody>
         ${teacherSessions.map(s => {
-          const code = allMeetCodes[s.meeting_code];
+          const code    = allMeetCodes[s.meeting_code];
           const codeStr = code ? (code.label || code.code) : (s.meeting_code || '—');
-          const day  = DAY_FULL[s.weekday] || '—';
-          const time = formatTime(s.session_time);
-          const dur  = s.duration_mins ? `${s.duration_mins} min` : '—';
+          const day     = DAY_FULL[s.weekday] || '—';
+          const dur     = s.duration_mins ? `${s.duration_mins} min` : '—';
+
+          const adminTime = convertTime(s.session_time, adminTz);
+          const stuTime   = convertTime(s.session_time, stuTz);
+
+          const timeCells = sameTimezone
+            ? `<td>${adminTime}</td>`
+            : `<td>${adminTime}</td>
+               <td style="color:var(--blue);font-weight:500">${stuTime}</td>`;
+
           return `<tr>
             <td>${day}</td>
-            <td>${time}</td>
+            ${timeCells}
             <td>${dur}</td>
             <td style="font-family:monospace;font-size:11px">${codeStr}</td>
             <td style="color:var(--muted)">${s.label || '—'}</td>
